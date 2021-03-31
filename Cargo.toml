@@ -9,3 +9,4 @@ description = "SQL date/time types written in Rust."
 keywords = ["date", "time", "datetime", "timestamp", "SQL"]
 
 [dependencies]
+thiserror = "1.0.24"
