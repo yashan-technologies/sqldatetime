@@ -36,11 +36,31 @@ impl IntervalYm {
         IntervalYm(months)
     }
 
+    /// Creates a `IntervalYm` from the given month.
+    ///
+    /// # Safety
+    /// This function is unsafe because the values are not checked for validity!
+    /// Before using it, check that the values are all correct.
+    #[inline]
+    pub const unsafe fn from_month_unchecked(month: i32) -> Self {
+        IntervalYm(month)
+    }
+
     /// Creates a `IntervalYm` from the given year and month.
     #[inline]
     pub const fn try_from_ym(year: i32, month: i32) -> Result<Self> {
-        if IntervalYm::is_valid(year, month) {
+        if IntervalYm::is_valid_ym(year, month) {
             Ok(unsafe { IntervalYm::from_ym_unchecked(year, month) })
+        } else {
+            Err(Error::OutOfRange)
+        }
+    }
+
+    /// Creates a `IntervalYm` from the given month.
+    #[inline]
+    pub const fn try_from_month(month: i32) -> Result<Self> {
+        if IntervalYm::is_valid_month(month) {
+            Ok(unsafe { IntervalYm::from_month_unchecked(month) })
         } else {
             Err(Error::OutOfRange)
         }
@@ -48,7 +68,7 @@ impl IntervalYm {
 
     /// Checks if the given year and month are valid.
     #[inline]
-    pub const fn is_valid(year: i32, month: i32) -> bool {
+    pub const fn is_valid_ym(year: i32, month: i32) -> bool {
         if year > INTERVAL_MAX_YEAR || year < -INTERVAL_MAX_YEAR {
             return false;
         }
@@ -64,17 +84,21 @@ impl IntervalYm {
         true
     }
 
+    /// Checks if the given year and month are valid.
+    #[inline]
+    pub const fn is_valid_month(month: i32) -> bool {
+        if month < -(MONTHS_PER_YEAR as i32) || month >= MONTHS_PER_YEAR as i32 {
+            return false;
+        }
+
+        true
+    }
+
     /// Gets the value of `IntervalYm`.
     #[allow(dead_code)]
     #[inline(always)]
     pub(crate) const fn value(self) -> i32 {
         self.0
-    }
-
-    #[allow(dead_code)]
-    #[inline(always)]
-    pub(crate) const unsafe fn from_value_unchecked(value: i32) -> Self {
-        IntervalYm(value)
     }
 
     /// Extracts `(year, month)` from the interval.
@@ -111,5 +135,11 @@ mod tests {
 
         let interval = IntervalYm::try_from_ym(-177999999, 11).unwrap();
         assert_eq!(interval.extract(), (-177999999, 11));
+
+        let interval = IntervalYm::try_from_month(0).unwrap();
+        assert_eq!(interval.extract(), (0, 0));
+
+        let interval = IntervalYm::try_from_month(11).unwrap();
+        assert_eq!(interval.extract(), (0, 11));
     }
 }
