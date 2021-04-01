@@ -24,14 +24,14 @@ impl Date {
     /// This function is unsafe because the values are not checked for validity!
     /// Before using it, check that the values are all correct.
     #[inline]
-    pub const unsafe fn from_ymd_unchecked(year: i32, month: i32, day: i32) -> Date {
+    pub const unsafe fn from_ymd_unchecked(year: i32, month: u32, day: u32) -> Date {
         let date = date2julian(year, month, day) - UNIX_EPOCH_JULIAN;
         Date(date)
     }
 
     /// Creates a `Date` from the given year, month, and day.
     #[inline]
-    pub const fn try_from_ymd(year: i32, month: i32, day: i32) -> Result<Date> {
+    pub const fn try_from_ymd(year: i32, month: u32, day: u32) -> Result<Date> {
         if Date::is_valid(year, month, day) {
             Ok(unsafe { Date::from_ymd_unchecked(year, month, day) })
         } else {
@@ -41,7 +41,7 @@ impl Date {
 
     /// Checks if the given year, month, and day fields are valid.
     #[inline]
-    pub const fn is_valid(year: i32, month: i32, day: i32) -> bool {
+    pub const fn is_valid(year: i32, month: u32, day: u32) -> bool {
         if year < DATE_MIN_YEAR || year > DATE_MAX_YEAR {
             return false;
         }
@@ -74,7 +74,7 @@ impl Date {
 
     /// Extracts `(year, month, day)` from the date.
     #[inline]
-    pub const fn extract(self) -> (i32, i32, i32) {
+    pub const fn extract(self) -> (i32, u32, u32) {
         julian2date(self.0 + UNIX_EPOCH_JULIAN)
     }
 
@@ -98,10 +98,10 @@ const fn is_leap_year(year: i32) -> bool {
 }
 
 #[inline(always)]
-const fn days_of_month(year: i32, month: i32) -> i32 {
-    const DAY_TABLE: [[i32; 13]; 2] = [
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 0],
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 0],
+const fn days_of_month(year: i32, month: u32) -> u32 {
+    const DAY_TABLE: [[u32; 12]; 2] = [
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
     ];
 
     DAY_TABLE[is_leap_year(year) as usize][month as usize - 1]

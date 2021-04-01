@@ -1,6 +1,6 @@
 //! Common structures, constants and functions.
 
-pub const MONTHS_PER_YEAR: i32 = 12;
+pub const MONTHS_PER_YEAR: u32 = 12;
 pub const HOURS_PER_DAY: u32 = 24;
 pub const MINUTES_PER_HOUR: u32 = 60;
 pub const SECONDS_PER_MINUTE: u32 = 60;
@@ -30,7 +30,7 @@ pub const TIMESTAMP_MAX: i64 =
 /// and calendar date for all non-negative Julian days
 /// (i.e. from Nov 24, -4713 on).
 #[inline]
-pub const fn date2julian(year: i32, month: i32, day: i32) -> i32 {
+pub const fn date2julian(year: i32, month: u32, day: u32) -> i32 {
     let (y, m) = if month > 2 {
         (year + 4800, month + 1)
     } else {
@@ -41,14 +41,14 @@ pub const fn date2julian(year: i32, month: i32, day: i32) -> i32 {
 
     let mut julian = y * 365 - 32167;
     julian += y / 4 - century + century / 4;
-    julian += 7834 * m / 256 + day;
+    julian += 7834 * m as i32 / 256 + day as i32;
 
     julian
 }
 
 /// Julian day to Calendar date conversion.
 #[inline]
-pub const fn julian2date(julian_day: i32) -> (i32, i32, i32) {
+pub const fn julian2date(julian_day: i32) -> (i32, u32, u32) {
     let mut julian = julian_day as u32 + 32044;
     let mut quad = julian / 146097;
     let extra = (julian - quad * 146097) * 4 + 3;
@@ -68,7 +68,8 @@ pub const fn julian2date(julian_day: i32) -> (i32, i32, i32) {
 
     let day = julian - 7834 * quad / 256;
     let month = (quad + 10) % MONTHS_PER_YEAR as u32 + 1;
-    (year, month as i32, day as i32)
+
+    (year, month, day)
 }
 
 #[allow(dead_code)]
