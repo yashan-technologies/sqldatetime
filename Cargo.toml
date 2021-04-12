@@ -10,3 +10,4 @@ keywords = ["date", "time", "datetime", "timestamp", "SQL"]
 
 [dependencies]
 thiserror = "1.0.24"
+stack-buf = "0.1.0"

@@ -5,6 +5,8 @@ use crate::common::{
     USECONDS_PER_MINUTE, USECONDS_PER_SECOND,
 };
 use crate::error::{Error, Result};
+use crate::format::{Formatter, LazyFormat, NaiveDateTime};
+use std::fmt::Display;
 
 /// Time represents a valid time of day.
 #[derive(Copy, Clone, Debug, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -92,6 +94,27 @@ impl Time {
         let usec = time as u32;
 
         (hour, minute, sec, usec)
+    }
+
+    #[inline]
+    pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
+        let fmt = Formatter::parse(fmt)?;
+        Ok(LazyFormat::new(fmt, self.into()))
+    }
+}
+
+impl From<Time> for NaiveDateTime {
+    #[inline]
+    fn from(time: Time) -> Self {
+        let (hour, minute, sec, usec) = time.extract();
+
+        NaiveDateTime {
+            hour,
+            minute,
+            sec,
+            usec,
+            ..NaiveDateTime::new()
+        }
     }
 }
 

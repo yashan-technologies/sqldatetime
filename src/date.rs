@@ -4,7 +4,9 @@ use crate::common::{
     date2julian, julian2date, DATE_MAX_YEAR, DATE_MIN_YEAR, MONTHS_PER_YEAR, UNIX_EPOCH_JULIAN,
 };
 use crate::error::{Error, Result};
+use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{Time, Timestamp};
+use std::fmt::Display;
 
 /// Date represents a valid Gregorian date.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -90,6 +92,12 @@ impl Date {
     pub const fn and_time(self, time: Time) -> Timestamp {
         Timestamp::new(self, time)
     }
+
+    #[inline]
+    pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
+        let fmt = Formatter::parse(fmt)?;
+        Ok(LazyFormat::new(fmt, self.into()))
+    }
 }
 
 #[inline(always)]
@@ -105,6 +113,20 @@ const fn days_of_month(year: i32, month: u32) -> u32 {
     ];
 
     DAY_TABLE[is_leap_year(year) as usize][month as usize - 1]
+}
+
+impl From<Date> for NaiveDateTime {
+    #[inline]
+    fn from(date: Date) -> Self {
+        let (year, month, day) = date.extract();
+
+        NaiveDateTime {
+            year,
+            month,
+            day,
+            ..NaiveDateTime::new()
+        }
+    }
 }
 
 #[cfg(test)]

@@ -5,6 +5,9 @@ use crate::common::{
     USECONDS_PER_DAY, USECONDS_PER_HOUR, USECONDS_PER_MINUTE, USECONDS_PER_SECOND,
 };
 use crate::error::{Error, Result};
+use crate::format::{LazyFormat, NaiveDateTime};
+use crate::Formatter;
+use std::fmt::Display;
 
 const INTERVAL_MAX_YEAR: i32 = 178000000;
 const INTERVAL_MAX_DAY: i32 = 100000000;
@@ -114,6 +117,27 @@ impl IntervalYM {
             -self.0 + year * MONTHS_PER_YEAR as i32
         };
         (year, month)
+    }
+
+    #[inline]
+    pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
+        let fmt = Formatter::parse(fmt)?;
+        Ok(LazyFormat::new(fmt, self.into()))
+    }
+}
+
+impl From<IntervalYM> for NaiveDateTime {
+    #[inline]
+    fn from(interval: IntervalYM) -> Self {
+        let (year, month) = interval.extract();
+        let negate = year < 0 || month < 0;
+        NaiveDateTime {
+            year: year.abs(),
+            month: month.abs() as u32,
+            is_interval: true,
+            negate,
+            ..NaiveDateTime::new()
+        }
     }
 }
 
@@ -241,6 +265,30 @@ impl IntervalDT {
             usec as i32,
         )
     }
+
+    #[inline]
+    pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
+        let fmt = Formatter::parse(fmt)?;
+        Ok(LazyFormat::new(fmt, self.into()))
+    }
+}
+
+impl From<IntervalDT> for NaiveDateTime {
+    #[inline]
+    fn from(interval: IntervalDT) -> Self {
+        let (day, hour, minute, second, microsecond) = interval.extract();
+        let negate = day < 0 || hour < 0 || minute < 0 || second < 0 || microsecond < 0;
+        NaiveDateTime {
+            day: day.abs() as u32,
+            hour: hour.abs() as u32,
+            minute: minute.abs() as u32,
+            sec: second.abs() as u32,
+            usec: microsecond.abs() as u32,
+            is_interval: true,
+            negate,
+            ..NaiveDateTime::new()
+        }
+    }
 }
 
 #[cfg(test)]
@@ -255,9 +303,13 @@ mod tests {
 
         let interval = IntervalYM::try_from_ym(178000000, 0).unwrap();
         assert_eq!(interval.extract(), (178000000, 0));
+        let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
+        assert_eq!(fmt, "178000000-00");
 
         let interval = IntervalYM::try_from_ym(-178000000, 0).unwrap();
         assert_eq!(interval.extract(), (-178000000, 0));
+        let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
+        assert_eq!(fmt, "-178000000-00");
 
         let interval = IntervalYM::try_from_ym(177999999, 11).unwrap();
         assert_eq!(interval.extract(), (177999999, 11));
@@ -268,8 +320,10 @@ mod tests {
         let interval = IntervalYM::try_from_month(0).unwrap();
         assert_eq!(interval.extract(), (0, 0));
 
-        let interval = IntervalYM::try_from_month(11).unwrap();
-        assert_eq!(interval.extract(), (0, 11));
+        let interval = IntervalYM::try_from_month(-11).unwrap();
+        assert_eq!(interval.extract(), (0, -11));
+        let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
+        assert_eq!(fmt, "-0000-11");
     }
 
     #[test]
@@ -277,9 +331,13 @@ mod tests {
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.value(), 0);
         assert_eq!(interval.extract(), (0, 0, 0, 0, 0));
+        let fmt = format!("{}", interval.format("DD HH:MI:SS").unwrap());
+        assert_eq!(fmt, "00 00:00:00");
 
         let interval = IntervalDT::try_from_dhms(100000000, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.extract(), (100000000, 0, 0, 0, 0));
+        let fmt = format!("{}", interval.format("DD HH:MI:SS").unwrap());
+        assert_eq!(fmt, "100000000 00:00:00");
 
         let interval = IntervalDT::try_from_dhms(-100000000, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.extract(), (-100000000, 0, 0, 0, 0));
@@ -289,5 +347,7 @@ mod tests {
 
         let interval = IntervalDT::try_from_dhms(-99999999, 23, 59, 59, 999999).unwrap();
         assert_eq!(interval.extract(), (-99999999, 23, 59, 59, 999999));
+        let fmt = format!("{}", interval.format("DD HH:MI:SS.FF6").unwrap());
+        assert_eq!(fmt, "-99999999 23:59:59.999999");
     }
 }
