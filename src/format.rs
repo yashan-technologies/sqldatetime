@@ -455,13 +455,15 @@ impl<'a> Iterator for FormatParser<'a> {
     }
 }
 
+/// Date/Time formatter.
 pub struct Formatter {
     fields: StackVec<Field, MAX_FIELDS>,
 }
 
 impl Formatter {
+    /// Creates a new `Formatter` from given format string.
     #[inline]
-    pub fn parse<S: AsRef<str>>(fmt: S) -> Result<Self> {
+    pub fn try_new<S: AsRef<str>>(fmt: S) -> Result<Self> {
         let parser = FormatParser::new(fmt.as_ref().as_bytes());
 
         let mut fields = StackVec::new();
@@ -484,30 +486,35 @@ impl Formatter {
         Ok(Formatter { fields })
     }
 
+    /// Formats `Date`.
     #[inline]
     pub fn format_date<W: fmt::Write>(&self, date: Date, w: W) -> Result<()> {
         let dt = date.into();
         self.internal_format(&dt, w)
     }
 
+    /// Formats `Time`.
     #[inline]
     pub fn format_time<W: fmt::Write>(&self, time: Time, w: W) -> Result<()> {
         let dt = time.into();
         self.internal_format(&dt, w)
     }
 
+    /// Formats `Timestamp`.
     #[inline]
     pub fn format_timestamp<W: fmt::Write>(&self, ts: Timestamp, w: W) -> Result<()> {
         let dt = ts.into();
         self.internal_format(&dt, w)
     }
 
+    /// Formats `IntervalYM`.
     #[inline]
     pub fn format_interval_ym<W: fmt::Write>(&self, interval: IntervalYM, w: W) -> Result<()> {
         let dt = interval.into();
         self.internal_format(&dt, w)
     }
 
+    /// Formats `IntervalDT`.
     #[inline]
     pub fn format_interval_dt<W: fmt::Write>(&self, interval: IntervalDT, w: W) -> Result<()> {
         let dt = interval.into();

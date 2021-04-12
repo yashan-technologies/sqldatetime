@@ -119,9 +119,10 @@ impl IntervalYM {
         (year, month)
     }
 
+    /// Formats `IntervalYM` by given format string.
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
-        let fmt = Formatter::parse(fmt)?;
+        let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
 }
@@ -266,9 +267,10 @@ impl IntervalDT {
         )
     }
 
+    /// Formats `IntervalDT` by given format string.
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
-        let fmt = Formatter::parse(fmt)?;
+        let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
 }

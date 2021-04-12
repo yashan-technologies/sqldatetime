@@ -52,9 +52,10 @@ impl Timestamp {
         Timestamp(value)
     }
 
+    /// Formats `Timestamp` by given format string.
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
-        let fmt = Formatter::parse(fmt)?;
+        let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
 }
