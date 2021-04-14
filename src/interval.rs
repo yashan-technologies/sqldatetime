@@ -7,6 +7,7 @@ use crate::common::{
 use crate::error::{Error, Result};
 use crate::format::{LazyFormat, NaiveDateTime};
 use crate::Formatter;
+use std::convert::TryFrom;
 use std::fmt::Display;
 
 const INTERVAL_MAX_YEAR: i32 = 178000000;
@@ -125,6 +126,13 @@ impl IntervalYM {
         let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
+
+    /// Parses `IntervalYM` from given string and format.
+    #[inline]
+    pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
+        let fmt = Formatter::try_new(fmt)?;
+        fmt.parse_interval_ym(input)
+    }
 }
 
 impl From<IntervalYM> for NaiveDateTime {
@@ -139,6 +147,15 @@ impl From<IntervalYM> for NaiveDateTime {
             negate,
             ..NaiveDateTime::new()
         }
+    }
+}
+
+impl TryFrom<NaiveDateTime> for IntervalYM {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: NaiveDateTime) -> Result<Self> {
+        IntervalYM::try_from_ym(dt.year, dt.month as i32)
     }
 }
 
@@ -273,6 +290,13 @@ impl IntervalDT {
         let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
+
+    /// Parses `IntervalDT` from given string and format.
+    #[inline]
+    pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
+        let fmt = Formatter::try_new(fmt)?;
+        fmt.parse_interval_dt(input)
+    }
 }
 
 impl From<IntervalDT> for NaiveDateTime {
@@ -293,6 +317,21 @@ impl From<IntervalDT> for NaiveDateTime {
     }
 }
 
+impl TryFrom<NaiveDateTime> for IntervalDT {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: NaiveDateTime) -> Result<Self> {
+        IntervalDT::try_from_dhms(
+            dt.day as i32,
+            dt.hour as i32,
+            dt.minute as i32,
+            dt.sec as i32,
+            dt.usec as i32,
+        )
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -307,11 +346,15 @@ mod tests {
         assert_eq!(interval.extract(), (178000000, 0));
         let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
         assert_eq!(fmt, "178000000-00");
+        let interval2 = IntervalYM::parse("178000000-00", "yyyy-mm").unwrap();
+        assert_eq!(interval2, interval);
 
         let interval = IntervalYM::try_from_ym(-178000000, 0).unwrap();
         assert_eq!(interval.extract(), (-178000000, 0));
         let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
         assert_eq!(fmt, "-178000000-00");
+        let interval2 = IntervalYM::parse("-178000000-00", "yyyy-mm").unwrap();
+        assert_eq!(interval2, interval);
 
         let interval = IntervalYM::try_from_ym(177999999, 11).unwrap();
         assert_eq!(interval.extract(), (177999999, 11));
@@ -326,6 +369,10 @@ mod tests {
         assert_eq!(interval.extract(), (0, -11));
         let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
         assert_eq!(fmt, "-0000-11");
+
+        // TODO
+        // let interval2 = IntervalYM::parse("-0000-11", "yyyy-mm").unwrap();
+        // assert_eq!(interval2, interval);
     }
 
     #[test]
@@ -340,6 +387,8 @@ mod tests {
         assert_eq!(interval.extract(), (100000000, 0, 0, 0, 0));
         let fmt = format!("{}", interval.format("DD HH:MI:SS").unwrap());
         assert_eq!(fmt, "100000000 00:00:00");
+        let interval2 = IntervalDT::parse("100000000 00:00:00", "DD HH:MI:SS").unwrap();
+        assert_eq!(interval2, interval);
 
         let interval = IntervalDT::try_from_dhms(-100000000, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.extract(), (-100000000, 0, 0, 0, 0));

@@ -6,6 +6,7 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
+use std::convert::TryFrom;
 use std::fmt::Display;
 
 /// Time represents a valid time of day.
@@ -102,6 +103,13 @@ impl Time {
         let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
+
+    /// Parses `Time` from given string and format.
+    #[inline]
+    pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
+        let fmt = Formatter::try_new(fmt)?;
+        fmt.parse_time(input)
+    }
 }
 
 impl From<Time> for NaiveDateTime {
@@ -119,6 +127,24 @@ impl From<Time> for NaiveDateTime {
     }
 }
 
+impl TryFrom<&NaiveDateTime> for Time {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: &NaiveDateTime) -> Result<Self> {
+        Time::try_from_hms(dt.hour, dt.minute, dt.sec, dt.usec)
+    }
+}
+
+impl TryFrom<NaiveDateTime> for Time {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: NaiveDateTime) -> Result<Self> {
+        Time::try_from(&dt)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -132,5 +158,7 @@ mod tests {
         let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
         assert_eq!(time.value(), 86399999999);
         assert_eq!(time.extract(), (23, 59, 59, 999999));
+        let time2 = Time::parse("23:59:59.999999", "HH:MI:SS.FF").unwrap();
+        assert_eq!(time2, time);
     }
 }

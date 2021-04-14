@@ -4,9 +4,14 @@ use crate::common::DATE_MIN_YEAR;
 use crate::error::Result;
 use crate::{Date, Error, IntervalDT, IntervalYM, Time, Timestamp};
 use stack_buf::StackVec;
+use std::convert::TryFrom;
 use std::fmt;
 
 const MAX_FIELDS: usize = 32;
+
+const FRACTION_FACTOR: [f64; 10] = [
+    1000000.0, 100000.0, 10000.0, 1000.0, 100.0, 10.0, 1.0, 0.1, 0.01, 0.001,
+];
 
 #[derive(Debug)]
 pub struct NaiveDateTime {
@@ -17,6 +22,9 @@ pub struct NaiveDateTime {
     pub minute: u32,
     pub sec: u32,
     pub usec: u32,
+
+    // for Timestamp parsing
+    pub ampm: Option<AmPm>,
 
     // for interval
     pub is_interval: bool,
@@ -34,6 +42,7 @@ impl NaiveDateTime {
             minute: 0,
             sec: 0,
             usec: 0,
+            ampm: None,
             is_interval: false,
             negate: false,
         }
@@ -84,14 +93,14 @@ impl NaiveDateTime {
     }
 
     #[inline]
-    pub fn fraction(&self, frac: u8) -> u32 {
-        const FACTOR: [f64; 10] = [
-            1000000.0, 100000.0, 10000.0, 1000.0, 100.0, 10.0, 1.0, 0.1, 0.01, 0.001,
-        ];
+    pub fn fraction(&self, p: u8) -> u32 {
+        assert!(p < 10);
+        (self.usec() as f64 / FRACTION_FACTOR[p as usize]) as u32
+    }
 
-        assert!(frac < 10);
-
-        (self.usec() as f64 / FACTOR[frac as usize]) as u32
+    #[inline]
+    pub fn set_fraction(&mut self, frac: u32, p: u8) {
+        self.usec = (frac as f64 * FRACTION_FACTOR[p as usize]) as u32;
     }
 
     #[inline]
@@ -103,9 +112,33 @@ impl NaiveDateTime {
     pub const fn negate(&self) -> bool {
         self.negate
     }
+
+    #[inline]
+    pub fn adjust_hour12(&mut self) {
+        if let Some(ampm) = &self.ampm {
+            let hour24 = match ampm {
+                AmPm::Am => {
+                    if self.hour == 12 {
+                        0
+                    } else {
+                        self.hour
+                    }
+                }
+                AmPm::Pm => {
+                    if self.hour == 12 {
+                        12
+                    } else {
+                        self.hour + 12
+                    }
+                }
+            };
+
+            self.hour = hour24 as u32;
+        }
+    }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq)]
 pub enum Field {
     Invalid,
     /// ' '
@@ -143,35 +176,41 @@ pub enum Field {
     /// 'FF[1..9]'
     Fraction(u8),
     /// 'AM', 'A.M.', 'PM', 'P.M.'
-    AmPm(AmPm),
+    AmPm(AmPmStyle),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug)]
 pub enum AmPm {
+    Am,
+    Pm,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum AmPmStyle {
     Upper,
     Lower,
     UpperDot,
     LowerDot,
 }
 
-impl AmPm {
+impl AmPmStyle {
     #[inline]
     const fn am(&self) -> &str {
         match self {
-            AmPm::Upper => "AM",
-            AmPm::Lower => "am",
-            AmPm::UpperDot => "A.M.",
-            AmPm::LowerDot => "a.m.",
+            AmPmStyle::Upper => "AM",
+            AmPmStyle::Lower => "am",
+            AmPmStyle::UpperDot => "A.M.",
+            AmPmStyle::LowerDot => "a.m.",
         }
     }
 
     #[inline]
     const fn pm(&self) -> &str {
         match self {
-            AmPm::Upper => "PM",
-            AmPm::Lower => "pm",
-            AmPm::UpperDot => "P.M.",
-            AmPm::LowerDot => "p.m.",
+            AmPmStyle::Upper => "PM",
+            AmPmStyle::Lower => "pm",
+            AmPmStyle::UpperDot => "P.M.",
+            AmPmStyle::LowerDot => "p.m.",
         }
     }
 
@@ -306,9 +345,9 @@ impl<'a> FormatParser<'a> {
             Some(b'F') | Some(b'f') => match self.peek() {
                 Some(ch) if ch.is_ascii_digit() => {
                     self.advance(1);
-                    let frac = ch - b'0';
-                    if (1..=9).contains(&frac) {
-                        Field::Fraction(frac)
+                    let p = ch - b'0';
+                    if (1..=9).contains(&p) {
+                        Field::Fraction(p)
                     } else {
                         Field::Invalid
                     }
@@ -333,11 +372,11 @@ impl<'a> FormatParser<'a> {
             return match rem {
                 b"A.M." | b"A.m." | b"a.M." => {
                     self.advance(4);
-                    Field::AmPm(AmPm::UpperDot)
+                    Field::AmPm(AmPmStyle::UpperDot)
                 }
                 b"a.m." => {
                     self.advance(4);
-                    Field::AmPm(AmPm::LowerDot)
+                    Field::AmPm(AmPmStyle::LowerDot)
                 }
                 _ => Field::Invalid,
             };
@@ -348,11 +387,11 @@ impl<'a> FormatParser<'a> {
             return match rem {
                 b"AM" | b"Am" | b"aM" => {
                     self.advance(2);
-                    Field::AmPm(AmPm::Upper)
+                    Field::AmPm(AmPmStyle::Upper)
                 }
                 b"am" => {
                     self.advance(2);
-                    Field::AmPm(AmPm::Lower)
+                    Field::AmPm(AmPmStyle::Lower)
                 }
                 _ => Field::Invalid,
             };
@@ -375,11 +414,11 @@ impl<'a> FormatParser<'a> {
             return match rem {
                 b"P.M." | b"P.m." | b"p.M." => {
                     self.advance(4);
-                    Field::AmPm(AmPm::UpperDot)
+                    Field::AmPm(AmPmStyle::UpperDot)
                 }
                 b"p.m." => {
                     self.advance(4);
-                    Field::AmPm(AmPm::LowerDot)
+                    Field::AmPm(AmPmStyle::LowerDot)
                 }
                 _ => Field::Invalid,
             };
@@ -390,11 +429,11 @@ impl<'a> FormatParser<'a> {
             return match rem {
                 b"PM" | b"Pm" | b"pM" => {
                     self.advance(2);
-                    Field::AmPm(AmPm::Upper)
+                    Field::AmPm(AmPmStyle::Upper)
                 }
                 b"pm" => {
                     self.advance(2);
-                    Field::AmPm(AmPm::Lower)
+                    Field::AmPm(AmPmStyle::Lower)
                 }
                 _ => Field::Invalid,
             };
@@ -554,14 +593,184 @@ impl Formatter {
                 }
                 Field::Minute => write!(w, "{:02}", dt.minute())?,
                 Field::Second => write!(w, "{:02}", dt.sec())?,
-                Field::Fraction(frac) => {
-                    write!(w, "{:<0width$}", dt.fraction(*frac), width = *frac as usize)?
+                Field::Fraction(p) => {
+                    write!(w, "{:<0width$}", dt.fraction(*p), width = *p as usize)?
                 }
                 Field::AmPm(am_pm) => write!(w, "{}", am_pm.format(dt.hour24()))?,
             }
         }
 
         Ok(())
+    }
+
+    /// Parses `Date` from `input`.
+    #[inline]
+    pub fn parse_date<S: AsRef<str>>(&self, input: S) -> Result<Date> {
+        self.internal_parse(input.as_ref())
+    }
+
+    /// Parses `Time` from `input`.
+    #[inline]
+    pub fn parse_time<S: AsRef<str>>(&self, input: S) -> Result<Time> {
+        self.internal_parse(input.as_ref())
+    }
+
+    /// Parses `Timestamp` from `input`.
+    #[inline]
+    pub fn parse_timestamp<S: AsRef<str>>(&self, input: S) -> Result<Timestamp> {
+        self.internal_parse(input.as_ref())
+    }
+
+    /// Parses `IntervalYM` from `input`.
+    #[inline]
+    pub fn parse_interval_ym<S: AsRef<str>>(&self, input: S) -> Result<IntervalYM> {
+        self.internal_parse(input.as_ref())
+    }
+
+    /// Parses `IntervalDT` from `input`.
+    #[inline]
+    pub fn parse_interval_dt<S: AsRef<str>>(&self, input: S) -> Result<IntervalDT> {
+        self.internal_parse(input.as_ref())
+    }
+
+    #[inline]
+    fn internal_parse<T: TryFrom<NaiveDateTime, Error = Error>>(&self, input: &str) -> Result<T> {
+        let mut s = input.as_bytes();
+
+        let mut dt = NaiveDateTime::new();
+
+        macro_rules! expect_char {
+            ($ch: expr) => {{
+                if expect_char(s, $ch) {
+                    s = &s[1..];
+                } else {
+                    return Err(Error::ParseError(format!(
+                        "the input is inconsistent with the format: {}",
+                        input
+                    )));
+                }
+            }};
+        }
+
+        macro_rules! expect_number {
+            () => {{
+                let (n, rem) = parse_number(s)?;
+                s = rem;
+                n
+            }};
+        }
+
+        for field in self.fields.iter() {
+            match field {
+                Field::Invalid => unreachable!(),
+                Field::Blank => expect_char!(b' '),
+                Field::Hyphen => expect_char!(b'-'),
+                Field::Colon => expect_char!(b':'),
+                Field::Slash => expect_char!(b'/'),
+                Field::Backslash => expect_char!(b'\\'),
+                Field::Comma => expect_char!(b','),
+                Field::Dot => expect_char!(b'.'),
+                Field::Semicolon => expect_char!(b';'),
+                Field::T => expect_char!(b'T'),
+                Field::Year => {
+                    let year = expect_number!();
+                    dt.year = year;
+                }
+                Field::Month => {
+                    let month = expect_number!();
+                    dt.month = month as u32;
+                }
+                Field::Day => {
+                    let day = expect_number!();
+                    dt.day = day as u32;
+                }
+                Field::Hour24 => {
+                    let hour = expect_number!();
+                    dt.hour = hour as u32;
+                }
+                Field::Hour12 => {
+                    let hour = expect_number!();
+                    dt.hour = hour as u32;
+                    dt.adjust_hour12();
+                }
+                Field::Minute => {
+                    let minute = expect_number!();
+                    dt.minute = minute as u32;
+                }
+                Field::Second => {
+                    let sec = expect_number!();
+                    dt.sec = sec as u32;
+                }
+                Field::Fraction(p) => {
+                    let usec = expect_number!();
+                    dt.set_fraction(usec as u32, *p);
+                }
+                Field::AmPm(_) => {
+                    let (am_pm, rem) = parse_ampm(s)?;
+                    s = rem;
+
+                    if dt.ampm.is_some() {
+                        return Err(Error::ParseError("Duplicate AM/PM".to_string()));
+                    }
+
+                    dt.ampm = Some(am_pm);
+                    dt.adjust_hour12();
+                }
+            }
+        }
+
+        T::try_from(dt)
+    }
+}
+
+#[inline]
+fn expect_char(s: &[u8], expected: u8) -> bool {
+    matches!(s.first(), Some(ch) if *ch == expected)
+}
+
+#[inline]
+fn parse_number(input: &[u8]) -> Result<(i32, &[u8])> {
+    let (negative, s) = match input.first() {
+        Some(ch) => match ch {
+            b'+' => (false, &input[1..]),
+            b'-' => (true, &input[1..]),
+            _ => (false, input),
+        },
+        None => return Err(Error::ParseError("Invalid number".to_string())),
+    };
+
+    let (digits, s) = eat_digits(s);
+    if digits.is_empty() || digits.len() > 9 {
+        return Err(Error::ParseError("Invalid number".to_string()));
+    }
+
+    let int = digits
+        .iter()
+        .fold(0, |int, &i| int * 10 + (i - b'0') as i32);
+
+    let int = if negative { -int } else { int };
+
+    Ok((int, s))
+}
+
+#[inline]
+fn eat_digits(s: &[u8]) -> (&[u8], &[u8]) {
+    let i = s.iter().take_while(|&i| i.is_ascii_digit()).count();
+    (&s[..i], &s[i..])
+}
+
+#[inline]
+fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
+    if CaseInsensitive::starts_with(s, b"AM") {
+        Ok((AmPm::Am, &s[2..]))
+    } else if CaseInsensitive::starts_with(s, b"PM") {
+        Ok((AmPm::Pm, &s[2..]))
+    } else if CaseInsensitive::starts_with(s, b"A.M.") {
+        Ok((AmPm::Am, &s[4..]))
+    } else if CaseInsensitive::starts_with(s, b"P.M.") {
+        Ok((AmPm::Pm, &s[4..]))
+    } else {
+        Err(Error::ParseError("AM/PM is missing".to_string()))
     }
 }
 

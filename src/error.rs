@@ -14,6 +14,8 @@ pub enum Error {
     InvalidFormat(String),
     #[error("Failed to format: {0}")]
     FormatError(String),
+    #[error("Failed to parse: {0}")]
+    ParseError(String),
 }
 
 impl From<std::fmt::Error> for Error {

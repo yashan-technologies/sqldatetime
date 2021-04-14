@@ -3,7 +3,8 @@
 use crate::common::USECONDS_PER_DAY;
 use crate::error::Result;
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{Date, Time};
+use crate::{Date, Error, Time};
+use std::convert::TryFrom;
 use std::fmt::Display;
 
 /// Timestamp represents a valid time at a valid Gregorian date.
@@ -58,6 +59,13 @@ impl Timestamp {
         let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
+
+    /// Parses `Timestamp` from given string and format.
+    #[inline]
+    pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
+        let fmt = Formatter::try_new(fmt)?;
+        fmt.parse_timestamp(input)
+    }
 }
 
 impl From<Timestamp> for NaiveDateTime {
@@ -75,9 +83,19 @@ impl From<Timestamp> for NaiveDateTime {
             minute,
             sec,
             usec,
+            ampm: None,
             is_interval: false,
             negate: false,
         }
+    }
+}
+
+impl TryFrom<NaiveDateTime> for Timestamp {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: NaiveDateTime) -> Result<Self> {
+        Ok(Date::try_from(&dt)?.and_time(Time::try_from(&dt)?))
     }
 }
 
@@ -99,6 +117,10 @@ mod tests {
 
             let fmt = format!("{}", ts.format("yyyy-mm-dd hh24:mi:ss.ff3").unwrap());
             assert_eq!(fmt, "1970-01-01 00:00:00.000");
+
+            let ts2 =
+                Timestamp::parse("1970-01-01 00:00:00.000", "yyyy-mm-dd hh24:mi:ss.ff3").unwrap();
+            assert_eq!(ts2, ts);
         }
 
         {
@@ -122,6 +144,11 @@ mod tests {
 
             let fmt = format!("{}", ts.format("yyyy-mm-dd hh:mi:ss.ff1 AM").unwrap());
             assert_eq!(fmt, "9999-12-31 11:59:59.9 PM");
+
+            let ts2 =
+                Timestamp::parse("9999-12-31 11:59:59.999999 PM", "yyyy-mm-dd hh:mi:ss.ff AM")
+                    .unwrap();
+            assert_eq!(ts2, ts);
         }
     }
 }

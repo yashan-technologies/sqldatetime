@@ -6,6 +6,7 @@ use crate::common::{
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{Time, Timestamp};
+use std::convert::TryFrom;
 use std::fmt::Display;
 
 /// Date represents a valid Gregorian date.
@@ -99,6 +100,13 @@ impl Date {
         let fmt = Formatter::try_new(fmt)?;
         Ok(LazyFormat::new(fmt, self.into()))
     }
+
+    /// Parses `Date` from given string and format.
+    #[inline]
+    pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
+        let fmt = Formatter::try_new(fmt)?;
+        fmt.parse_date(input)
+    }
 }
 
 #[inline(always)]
@@ -130,6 +138,24 @@ impl From<Date> for NaiveDateTime {
     }
 }
 
+impl TryFrom<&NaiveDateTime> for Date {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: &NaiveDateTime) -> Result<Self> {
+        Date::try_from_ymd(dt.year, dt.month, dt.day)
+    }
+}
+
+impl TryFrom<NaiveDateTime> for Date {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(dt: NaiveDateTime) -> Result<Self> {
+        Date::try_from(&dt)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,5 +171,7 @@ mod tests {
 
         let date = Date::try_from_ymd(9999, 12, 31).unwrap();
         assert_eq!(date.extract(), (9999, 12, 31));
+        let date2 = Date::parse("9999-12-31", "YYYY-MM-DD").unwrap();
+        assert_eq!(date2, date);
     }
 }
