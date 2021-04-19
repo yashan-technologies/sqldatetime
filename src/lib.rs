@@ -8,6 +8,9 @@ mod interval;
 mod time;
 mod timestamp;
 
+#[cfg(feature = "serde")]
+mod serialize;
+
 pub use crate::date::Date;
 pub use crate::error::Error;
 pub use crate::format::Formatter;
