@@ -1,11 +1,13 @@
 //! Time implementation.
 
 use crate::common::{
-    HOURS_PER_DAY, MINUTES_PER_HOUR, SECONDS_PER_MINUTE, USECONDS_MAX, USECONDS_PER_HOUR,
-    USECONDS_PER_MINUTE, USECONDS_PER_SECOND,
+    is_valid_time, HOURS_PER_DAY, MINUTES_PER_HOUR, SECONDS_PER_MINUTE, USECONDS_MAX,
+    USECONDS_PER_DAY, USECONDS_PER_HOUR, USECONDS_PER_MINUTE, USECONDS_PER_SECOND,
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
+use crate::IntervalDT;
+use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
@@ -15,10 +17,10 @@ use std::fmt::Display;
 pub struct Time(i64);
 
 impl Time {
-    /// The smallest time that can be represented by `Time`, i.e. `00:00:00.000000`.
-    pub const MIN: Self = unsafe { Time::from_hms_unchecked(0, 0, 0, 0) };
+    /// The zero time that can be represented by `Time`, i.e. `00:00:00.000000`.
+    pub const ZERO: Self = unsafe { Time::from_hms_unchecked(0, 0, 0, 0) };
 
-    /// The smallest time that can be represented by `Time`, i.e. `59:59:59.999999`.
+    /// The max time that can be represented by `Time`, i.e. `59:59:59.999999`.
     pub const MAX: Self = unsafe { Time::from_hms_unchecked(59, 59, 59, 999999) };
 
     /// Creates a `Time` from the given hour, minute, second and microsecond.
@@ -68,7 +70,7 @@ impl Time {
     }
 
     /// Gets the value of `Time`.
-    #[inline]
+    #[inline(always)]
     pub(crate) const fn value(self) -> i64 {
         self.0
     }
@@ -76,6 +78,16 @@ impl Time {
     #[inline(always)]
     pub(crate) const unsafe fn from_value_unchecked(value: i64) -> Self {
         Time(value)
+    }
+
+    #[allow(dead_code)]
+    #[inline]
+    pub(crate) const fn try_from_value(value: i64) -> Result<Self> {
+        if is_valid_time(value) {
+            Ok(unsafe { Time::from_value_unchecked(value) })
+        } else {
+            Err(Error::OutOfRange)
+        }
     }
 
     /// Extracts `(hour, minute, second, microsecond)` from the time.
@@ -110,6 +122,41 @@ impl Time {
         let fmt = Formatter::try_new(fmt)?;
         fmt.parse_time(input)
     }
+
+    /// `Time` subtracts `Time`
+    #[inline]
+    pub const fn sub_time(self, time: Time) -> IntervalDT {
+        unsafe { IntervalDT::from_value_unchecked(self.value() - time.value()) }
+    }
+
+    /// `Time` adds `IntervalDT`
+    #[inline]
+    pub const fn add_interval_dt(self, interval: IntervalDT) -> Time {
+        let temp_result = self.value() + interval.value() % USECONDS_PER_DAY;
+        if temp_result >= 0 {
+            unsafe { Time::from_value_unchecked(temp_result % USECONDS_PER_DAY) }
+        } else {
+            unsafe { Time::from_value_unchecked(temp_result + USECONDS_PER_DAY) }
+        }
+    }
+
+    /// `Time` subtracts `IntervalDT`
+    #[inline]
+    pub const fn sub_interval_dt(self, interval: IntervalDT) -> Time {
+        self.add_interval_dt(interval.negate())
+    }
+
+    /// `Time` multiplies `f64`
+    #[inline]
+    pub fn mul_f64(self, number: f64) -> Result<IntervalDT> {
+        unsafe { IntervalDT::from_value_unchecked(self.value()).mul_f64(number) }
+    }
+
+    /// 'Time' divides `f64`
+    #[inline]
+    pub fn div_f64(self, number: f64) -> Result<IntervalDT> {
+        unsafe { IntervalDT::from_value_unchecked(self.value()).div_f64(number) }
+    }
 }
 
 impl From<Time> for NaiveDateTime {
@@ -124,6 +171,20 @@ impl From<Time> for NaiveDateTime {
             usec,
             ..NaiveDateTime::new()
         }
+    }
+}
+
+impl PartialEq<IntervalDT> for Time {
+    #[inline]
+    fn eq(&self, other: &IntervalDT) -> bool {
+        self.value() == other.value()
+    }
+}
+
+impl PartialOrd<IntervalDT> for Time {
+    #[inline]
+    fn partial_cmp(&self, other: &IntervalDT) -> Option<Ordering> {
+        Some(self.value().cmp(&other.value()))
     }
 }
 
@@ -160,5 +221,175 @@ mod tests {
         assert_eq!(time.extract(), (23, 59, 59, 999999));
         let time2 = Time::parse("23:59:59.999999", "HH:MI:SS.FF").unwrap();
         assert_eq!(time2, time);
+    }
+
+    #[test]
+    fn test_sub_time() {
+        assert_eq!(
+            Time::try_from_hms(0, 0, 0, 0)
+                .unwrap()
+                .sub_time(Time::try_from_hms(1, 2, 3, 4).unwrap()),
+            -IntervalDT::try_from_dhms(0, 1, 2, 3, 4).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(0, 0, 0, 0)
+                .unwrap()
+                .sub_time(Time::try_from_hms(23, 59, 59, 999999).unwrap()),
+            -IntervalDT::try_from_dhms(0, 23, 59, 59, 999999).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(12, 2, 4, 6)
+                .unwrap()
+                .sub_time(Time::try_from_hms(1, 3, 4, 6).unwrap()),
+            IntervalDT::try_from_dhms(0, 10, 59, 0, 0).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_time_add_sub_interval_dt() {
+        assert_eq!(
+            Time::try_from_hms(12, 30, 2, 3)
+                .unwrap()
+                .add_interval_dt(IntervalDT::try_from_dhms(123, 1, 2, 3, 4).unwrap()),
+            Time::try_from_hms(13, 32, 5, 7).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(12, 30, 2, 3)
+                .unwrap()
+                .add_interval_dt(IntervalDT::try_from_dhms(0, 15, 8, 59, 4).unwrap()),
+            Time::try_from_hms(03, 39, 1, 7).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(12, 30, 2, 3)
+                .unwrap()
+                .sub_interval_dt(IntervalDT::try_from_dhms(123, 15, 8, 59, 4).unwrap()),
+            Time::try_from_hms(21, 21, 02, 999999).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(12, 30, 2, 3)
+                .unwrap()
+                .sub_interval_dt(IntervalDT::try_from_dhms(123, 1, 2, 3, 4).unwrap()),
+            Time::try_from_hms(11, 27, 58, 999999).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(0, 0, 0, 0)
+                .unwrap()
+                .sub_interval_dt(IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap()),
+            Time::try_from_hms(0, 0, 0, 0).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(0, 0, 0, 0)
+                .unwrap()
+                .sub_interval_dt(IntervalDT::try_from_dhms(0, 1, 0, 0, 0).unwrap()),
+            Time::try_from_hms(23, 0, 0, 0).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_time_mul_div() {
+        // Normal
+        assert_eq!(
+            Time::try_from_hms(1, 2, 3, 4)
+                .unwrap()
+                .mul_f64(5.0)
+                .unwrap(),
+            IntervalDT::try_from_dhms(0, 5, 10, 15, 20).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(1, 2, 3, 4)
+                .unwrap()
+                .mul_f64(-5.2)
+                .unwrap(),
+            -IntervalDT::try_from_dhms(0, 5, 22, 39, 600021).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(2, 3, 4, 5)
+                .unwrap()
+                .div_f64(-5.2)
+                .unwrap(),
+            -IntervalDT::try_from_dhms(0, 0, 23, 40, 1).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(2, 3, 4, 5)
+                .unwrap()
+                .div_f64(-5.0)
+                .unwrap(),
+            -IntervalDT::try_from_dhms(0, 0, 24, 36, 800001).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(2, 3, 4, 5)
+                .unwrap()
+                .div_f64(f64::INFINITY)
+                .unwrap(),
+            IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(2, 3, 4, 5)
+                .unwrap()
+                .mul_f64(100.1)
+                .unwrap(),
+            IntervalDT::try_from_dhms(8, 13, 18, 58, 400501).unwrap()
+        );
+
+        // Round
+        assert_eq!(
+            Time::try_from_hms(2, 3, 4, 5)
+                .unwrap()
+                .div_f64(-5.1)
+                .unwrap(),
+            -IntervalDT::try_from_dhms(0, 0, 24, 07, 843138).unwrap()
+        );
+
+        assert_eq!(
+            Time::try_from_hms(2, 3, 4, 5)
+                .unwrap()
+                .mul_f64(-5.57)
+                .unwrap(),
+            -IntervalDT::try_from_dhms(0, 11, 25, 28, 880028).unwrap()
+        );
+
+        // Out of range
+        assert!(Time::try_from_hms(2, 3, 4, 5)
+            .unwrap()
+            .mul_f64(-12345678999999999999.6)
+            .is_err());
+
+        assert!(Time::try_from_hms(2, 3, 4, 5)
+            .unwrap()
+            .div_f64(-0.00000000000000001)
+            .is_err());
+
+        assert!(Time::try_from_hms(2, 3, 4, 5)
+            .unwrap()
+            .mul_f64(f64::NEG_INFINITY)
+            .is_err());
+
+        assert!(Time::try_from_hms(2, 3, 4, 5)
+            .unwrap()
+            .div_f64(f64::NAN)
+            .is_err());
+
+        assert!(Time::try_from_hms(2, 3, 4, 5)
+            .unwrap()
+            .mul_f64(f64::NAN)
+            .is_err());
+
+        // Divide by zero
+        assert!(Time::try_from_hms(2, 3, 4, 5)
+            .unwrap()
+            .div_f64(0.0)
+            .is_err());
     }
 }

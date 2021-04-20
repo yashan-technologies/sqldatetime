@@ -21,7 +21,7 @@ pub const DATE_MAX_JULIAN: i32 = date2julian(DATE_MAX_YEAR, 12, 31);
 
 pub const TIMESTAMP_MIN: i64 = (DATE_MIN_JULIAN - UNIX_EPOCH_JULIAN) as i64 * USECONDS_PER_DAY;
 pub const TIMESTAMP_MAX: i64 =
-    (DATE_MAX_JULIAN - date2julian(10000, 1, 1)) as i64 * USECONDS_PER_DAY - 1;
+    (date2julian(10000, 1, 1) - UNIX_EPOCH_JULIAN) as i64 * USECONDS_PER_DAY - 1;
 
 /// Calendar date to Julian day conversion.
 /// Julian date is commonly used in astronomical applications,
@@ -72,14 +72,32 @@ pub const fn julian2date(julian_day: i32) -> (i32, u32, u32) {
     (year, month, day)
 }
 
-#[allow(dead_code)]
 #[inline(always)]
 pub const fn is_valid_date(date: i32) -> bool {
     date >= (DATE_MIN_JULIAN - UNIX_EPOCH_JULIAN) && date <= (DATE_MAX_JULIAN - UNIX_EPOCH_JULIAN)
 }
 
-#[allow(dead_code)]
 #[inline(always)]
 pub const fn is_valid_timestamp(timestamp: i64) -> bool {
     timestamp >= TIMESTAMP_MIN && timestamp <= TIMESTAMP_MAX
+}
+
+#[inline(always)]
+pub const fn is_valid_time(time: i64) -> bool {
+    time >= 0 && time < USECONDS_PER_DAY
+}
+
+#[inline(always)]
+const fn is_leap_year(year: i32) -> bool {
+    year % 4 == 0 && ((year % 100) != 0 || (year % 400) == 0)
+}
+
+#[inline(always)]
+pub const fn days_of_month(year: i32, month: u32) -> u32 {
+    const DAY_TABLE: [[u32; 12]; 2] = [
+        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+    ];
+
+    DAY_TABLE[is_leap_year(year) as usize][month as usize - 1]
 }

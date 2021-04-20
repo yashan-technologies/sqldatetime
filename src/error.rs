@@ -16,6 +16,8 @@ pub enum Error {
     FormatError(String),
     #[error("Failed to parse: {0}")]
     ParseError(String),
+    #[error("Divide by zero")]
+    DivideByZero,
 }
 
 impl From<std::fmt::Error> for Error {
