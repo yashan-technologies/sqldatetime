@@ -1,8 +1,10 @@
 //! Formatting (and parsing) utilities for date and time.
 
 use crate::common::DATE_MIN_YEAR;
+use crate::date::{Month, WeekDay};
 use crate::error::Result;
-use crate::{Date, Error, IntervalDT, IntervalYM, Time, Timestamp};
+use crate::format::NameStyle::{AbbrCapital, Capital};
+use crate::{Date, Error};
 use stack_buf::StackVec;
 use std::convert::TryFrom;
 use std::fmt;
@@ -11,6 +13,93 @@ const MAX_FIELDS: usize = 32;
 
 const FRACTION_FACTOR: [f64; 10] = [
     1000000.0, 100000.0, 10000.0, 1000.0, 100.0, 10.0, 1.0, 0.1, 0.01, 0.001,
+];
+
+pub const MONTH_NAME_TABLE: [[&str; 12]; 6] = [
+    [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December",
+    ],
+    [
+        "january",
+        "february",
+        "march",
+        "april",
+        "may",
+        "june",
+        "july",
+        "august",
+        "september",
+        "october",
+        "november",
+        "december",
+    ],
+    [
+        "JANUARY",
+        "FEBRUARY",
+        "MARCH",
+        "APRIL",
+        "MAY",
+        "JUNE",
+        "JULY",
+        "AUGUST",
+        "SEPTEMBER",
+        "OCTOBER",
+        "NOVEMBER",
+        "DECEMBER",
+    ],
+    [
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    ],
+    [
+        "jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec",
+    ],
+    [
+        "JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
+    ],
+];
+
+pub const DAY_NAME_TABLE: [[&str; 7]; 6] = [
+    [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+    ],
+    [
+        "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+    ],
+    [
+        "SUNDAY",
+        "MONDAY",
+        "TUESDAY",
+        "WEDNESDAY",
+        "THURSDAY",
+        "FRIDAY",
+        "SATURDAY",
+    ],
+    ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
+    ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
 ];
 
 #[derive(Debug)]
@@ -29,6 +118,9 @@ pub struct NaiveDateTime {
     // for interval
     pub is_interval: bool,
     pub negate: bool,
+
+    // for date and timestamp
+    pub date: Option<Date>,
 }
 
 impl NaiveDateTime {
@@ -45,6 +137,7 @@ impl NaiveDateTime {
             ampm: None,
             is_interval: false,
             negate: false,
+            date: None,
         }
     }
 
@@ -136,6 +229,36 @@ impl NaiveDateTime {
             self.hour = hour24 as u32;
         }
     }
+
+    #[inline]
+    pub fn month_name(&self, style: NameStyle) -> &str {
+        Month::from(self.month as usize).name(style)
+    }
+
+    #[inline]
+    pub fn week_day_name(&self, style: NameStyle) -> Result<&str> {
+        if let Some(d) = self.date {
+            Ok(d.day_of_week().name(style))
+        } else {
+            Ok(Date::try_from_ymd(self.year, self.month, self.day)?
+                .day_of_week()
+                .name(style))
+        }
+    }
+}
+
+impl WeekDay {
+    #[inline(always)]
+    pub(crate) fn name(self, style: NameStyle) -> &'static str {
+        DAY_NAME_TABLE[style as usize][self as usize - 1]
+    }
+}
+
+impl Month {
+    #[inline(always)]
+    pub(crate) fn name(self, style: NameStyle) -> &'static str {
+        MONTH_NAME_TABLE[style as usize][self as usize - 1]
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -165,6 +288,10 @@ pub enum Field {
     Month,
     /// 'DD'
     Day,
+    /// 'DAY'
+    DayName(NameStyle),
+    /// 'MONTH'
+    MonthName(NameStyle),
     /// 'HH24'.
     Hour24,
     /// 'HH', 'HH12'
@@ -221,6 +348,16 @@ impl AmPmStyle {
             _ => self.pm(),
         }
     }
+}
+
+#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
+pub enum NameStyle {
+    Capital = 0,
+    Lower = 1,
+    Upper = 2,
+    AbbrCapital = 3,
+    AbbrLower = 4,
+    AbbrUpper = 5,
 }
 
 trait CaseInsensitive {
@@ -297,14 +434,6 @@ impl<'a> FormatParser<'a> {
     }
 
     #[inline]
-    fn parse_day(&mut self) -> Field {
-        match self.pop() {
-            Some(b'D') | Some(b'd') => Field::Day,
-            _ => Field::Invalid,
-        }
-    }
-
-    #[inline]
     fn parse_hour(&mut self) -> Field {
         let ch = match self.pop() {
             Some(ch) => ch,
@@ -360,8 +489,6 @@ impl<'a> FormatParser<'a> {
 
     #[inline]
     fn parse_am(&mut self) -> Field {
-        self.back(1);
-
         let remain = match self.remain() {
             Some(rem) => rem,
             None => return Field::Invalid,
@@ -369,16 +496,16 @@ impl<'a> FormatParser<'a> {
 
         if remain.len() >= 4 {
             let rem = &remain[0..4];
-            return match rem {
+            match rem {
                 b"A.M." | b"A.m." | b"a.M." => {
                     self.advance(4);
-                    Field::AmPm(AmPmStyle::UpperDot)
+                    return Field::AmPm(AmPmStyle::UpperDot);
                 }
                 b"a.m." => {
                     self.advance(4);
-                    Field::AmPm(AmPmStyle::LowerDot)
+                    return Field::AmPm(AmPmStyle::LowerDot);
                 }
-                _ => Field::Invalid,
+                _ => {}
             };
         }
 
@@ -401,9 +528,92 @@ impl<'a> FormatParser<'a> {
     }
 
     #[inline]
-    fn parse_pm(&mut self) -> Field {
-        self.back(1);
+    fn parse_month_name(&mut self) -> Field {
+        let remain = match self.remain() {
+            Some(rem) => rem,
+            None => return Field::Invalid,
+        };
 
+        if CaseInsensitive::starts_with(remain, b"month") {
+            return match &remain[0..2] {
+                b"MO" => {
+                    self.advance(5);
+                    Field::MonthName(NameStyle::Upper)
+                }
+                b"Mo" => {
+                    self.advance(5);
+                    Field::MonthName(NameStyle::Capital)
+                }
+                _ => {
+                    self.advance(5);
+                    Field::MonthName(NameStyle::Lower)
+                }
+            };
+        }
+
+        if CaseInsensitive::starts_with(remain, b"mon") {
+            return match &remain[0..2] {
+                b"MO" => {
+                    self.advance(3);
+                    Field::MonthName(NameStyle::AbbrUpper)
+                }
+                b"Mo" => {
+                    self.advance(3);
+                    Field::MonthName(NameStyle::AbbrCapital)
+                }
+                _ => {
+                    self.advance(3);
+                    Field::MonthName(NameStyle::AbbrLower)
+                }
+            };
+        }
+        Field::Invalid
+    }
+
+    #[inline]
+    fn parse_day_name(&mut self) -> Field {
+        let remain = match self.remain() {
+            Some(rem) => rem,
+            None => return Field::Invalid,
+        };
+
+        if CaseInsensitive::starts_with(remain, b"day") {
+            return match &remain[0..2] {
+                b"DA" => {
+                    self.advance(3);
+                    Field::DayName(NameStyle::Upper)
+                }
+                b"Da" => {
+                    self.advance(3);
+                    Field::DayName(NameStyle::Capital)
+                }
+                _ => {
+                    self.advance(3);
+                    Field::DayName(NameStyle::Lower)
+                }
+            };
+        } else if remain.len() >= 2 {
+            return match &remain[0..2] {
+                b"DY" => {
+                    self.advance(2);
+                    Field::DayName(NameStyle::AbbrUpper)
+                }
+                b"Dy" => {
+                    self.advance(2);
+                    Field::DayName(NameStyle::AbbrCapital)
+                }
+                _ => {
+                    self.advance(2);
+                    Field::DayName(NameStyle::AbbrLower)
+                }
+            };
+        }
+
+        Field::Invalid
+    }
+
+    #[inline]
+    fn parse_pm(&mut self) -> Field {
         let remain = match self.remain() {
             Some(rem) => rem,
             None => return Field::Invalid,
@@ -411,16 +621,16 @@ impl<'a> FormatParser<'a> {
 
         if remain.len() >= 4 {
             let rem = &remain[0..4];
-            return match rem {
+            match rem {
                 b"P.M." | b"P.m." | b"p.M." => {
                     self.advance(4);
-                    Field::AmPm(AmPmStyle::UpperDot)
+                    return Field::AmPm(AmPmStyle::UpperDot);
                 }
                 b"p.m." => {
                     self.advance(4);
-                    Field::AmPm(AmPmStyle::LowerDot)
+                    return Field::AmPm(AmPmStyle::LowerDot);
                 }
-                _ => Field::Invalid,
+                _ => {}
             };
         }
 
@@ -454,8 +664,24 @@ impl<'a> FormatParser<'a> {
                     b',' => Field::Comma,
                     b'.' => Field::Dot,
                     b';' => Field::Semicolon,
-                    b'A' | b'a' => self.parse_am(),
-                    b'D' | b'd' => self.parse_day(),
+                    b'A' | b'a' => {
+                        self.back(1);
+                        self.parse_am()
+                    }
+                    b'D' | b'd' => match self.peek() {
+                        Some(ch) => match ch {
+                            b'D' | b'd' => {
+                                self.advance(1);
+                                Field::Day
+                            }
+                            b'a' | b'A' | b'Y' | b'y' => {
+                                self.back(1);
+                                self.parse_day_name()
+                            }
+                            _ => Field::Invalid,
+                        },
+                        None => Field::Invalid,
+                    },
                     b'F' | b'f' => self.parse_fraction(),
                     b'H' | b'h' => self.parse_hour(),
                     b'M' | b'm' => match self.peek() {
@@ -468,11 +694,18 @@ impl<'a> FormatParser<'a> {
                                 self.advance(1);
                                 Field::Month
                             }
+                            b'O' | b'o' => {
+                                self.back(1);
+                                self.parse_month_name()
+                            }
                             _ => Field::Invalid,
                         },
                         None => Field::Invalid,
                     },
-                    b'P' | b'p' => self.parse_pm(),
+                    b'P' | b'p' => {
+                        self.back(1);
+                        self.parse_pm()
+                    }
                     b'S' | b's' => self.parse_second(),
                     b'T' => Field::T,
                     b'Y' | b'y' => self.parse_year(),
@@ -525,38 +758,10 @@ impl Formatter {
         Ok(Formatter { fields })
     }
 
-    /// Formats `Date`.
+    /// Formats datetime types
     #[inline]
-    pub fn format_date<W: fmt::Write>(&self, date: Date, w: W) -> Result<()> {
-        let dt = date.into();
-        self.internal_format(&dt, w)
-    }
-
-    /// Formats `Time`.
-    #[inline]
-    pub fn format_time<W: fmt::Write>(&self, time: Time, w: W) -> Result<()> {
-        let dt = time.into();
-        self.internal_format(&dt, w)
-    }
-
-    /// Formats `Timestamp`.
-    #[inline]
-    pub fn format_timestamp<W: fmt::Write>(&self, ts: Timestamp, w: W) -> Result<()> {
-        let dt = ts.into();
-        self.internal_format(&dt, w)
-    }
-
-    /// Formats `IntervalYM`.
-    #[inline]
-    pub fn format_interval_ym<W: fmt::Write>(&self, interval: IntervalYM, w: W) -> Result<()> {
-        let dt = interval.into();
-        self.internal_format(&dt, w)
-    }
-
-    /// Formats `IntervalDT`.
-    #[inline]
-    pub fn format_interval_dt<W: fmt::Write>(&self, interval: IntervalDT, w: W) -> Result<()> {
-        let dt = interval.into();
+    pub fn format<W: fmt::Write, T: Into<NaiveDateTime>>(&self, datetime: T, w: W) -> Result<()> {
+        let dt: NaiveDateTime = datetime.into();
         self.internal_format(&dt, w)
     }
 
@@ -597,39 +802,20 @@ impl Formatter {
                     write!(w, "{:<0width$}", dt.fraction(*p), width = *p as usize)?
                 }
                 Field::AmPm(am_pm) => write!(w, "{}", am_pm.format(dt.hour24()))?,
+                Field::MonthName(style) => write!(w, "{}", dt.month_name(*style))?,
+                Field::DayName(style) => write!(w, "{}", dt.week_day_name(*style)?)?,
             }
         }
 
         Ok(())
     }
 
-    /// Parses `Date` from `input`.
+    /// Parses datetime types
     #[inline]
-    pub fn parse_date<S: AsRef<str>>(&self, input: S) -> Result<Date> {
-        self.internal_parse(input.as_ref())
-    }
-
-    /// Parses `Time` from `input`.
-    #[inline]
-    pub fn parse_time<S: AsRef<str>>(&self, input: S) -> Result<Time> {
-        self.internal_parse(input.as_ref())
-    }
-
-    /// Parses `Timestamp` from `input`.
-    #[inline]
-    pub fn parse_timestamp<S: AsRef<str>>(&self, input: S) -> Result<Timestamp> {
-        self.internal_parse(input.as_ref())
-    }
-
-    /// Parses `IntervalYM` from `input`.
-    #[inline]
-    pub fn parse_interval_ym<S: AsRef<str>>(&self, input: S) -> Result<IntervalYM> {
-        self.internal_parse(input.as_ref())
-    }
-
-    /// Parses `IntervalDT` from `input`.
-    #[inline]
-    pub fn parse_interval_dt<S: AsRef<str>>(&self, input: S) -> Result<IntervalDT> {
+    pub fn parse<S: AsRef<str>, T: TryFrom<NaiveDateTime, Error = Error>>(
+        &self,
+        input: S,
+    ) -> Result<T> {
         self.internal_parse(input.as_ref())
     }
 
@@ -654,11 +840,21 @@ impl Formatter {
 
         macro_rules! expect_number {
             () => {{
-                let (n, rem) = parse_number(s)?;
+                let (neg, n, rem) = parse_number(s)?;
                 s = rem;
-                n
+                (n, neg)
             }};
         }
+
+        let mut is_year_set = false;
+        let mut is_month_set = false;
+        let mut is_day_set = false;
+        let mut is_hour_set = false;
+        let mut is_min_set = false;
+        let mut is_sec_set = false;
+        let mut is_fraction_set = false;
+
+        let mut dow: Option<WeekDay> = None;
 
         for field in self.fields.iter() {
             match field {
@@ -673,49 +869,114 @@ impl Formatter {
                 Field::Semicolon => expect_char!(b';'),
                 Field::T => expect_char!(b'T'),
                 Field::Year => {
-                    let year = expect_number!();
+                    if is_year_set {
+                        return Err(Error::ParseError("Duplicate year".to_string()));
+                    }
+                    let (year, negate) = expect_number!();
                     dt.year = year;
+                    dt.negate = negate;
+                    is_year_set = true;
                 }
                 Field::Month => {
-                    let month = expect_number!();
+                    if is_month_set {
+                        return Err(Error::ParseError("Duplicate month".to_string()));
+                    }
+                    let (month, _) = expect_number!();
                     dt.month = month as u32;
+                    is_month_set = true;
                 }
                 Field::Day => {
-                    let day = expect_number!();
+                    if is_day_set {
+                        return Err(Error::ParseError("Duplicate day".to_string()));
+                    }
+                    let (day, negate) = expect_number!();
                     dt.day = day as u32;
+                    dt.negate = negate;
+                    is_day_set = true;
                 }
                 Field::Hour24 => {
-                    let hour = expect_number!();
+                    // todo hh24 excludes hh12 and ampm
+                    let (hour, _) = expect_number!();
                     dt.hour = hour as u32;
                 }
                 Field::Hour12 => {
-                    let hour = expect_number!();
+                    if is_hour_set {
+                        return Err(Error::ParseError("Duplicate hour".to_string()));
+                    }
+                    let (hour, _) = expect_number!();
                     dt.hour = hour as u32;
                     dt.adjust_hour12();
+                    is_hour_set = true;
                 }
                 Field::Minute => {
-                    let minute = expect_number!();
+                    if is_min_set {
+                        return Err(Error::ParseError("Duplicate minute".to_string()));
+                    }
+                    let (minute, _) = expect_number!();
                     dt.minute = minute as u32;
+                    is_min_set = true;
                 }
                 Field::Second => {
-                    let sec = expect_number!();
+                    if is_sec_set {
+                        return Err(Error::ParseError("Duplicate second".to_string()));
+                    }
+                    let (sec, _) = expect_number!();
                     dt.sec = sec as u32;
+                    is_sec_set = true;
                 }
                 Field::Fraction(p) => {
-                    let usec = expect_number!();
+                    if is_fraction_set {
+                        return Err(Error::ParseError("Duplicate minute".to_string()));
+                    }
+                    let (usec, _) = expect_number!();
                     dt.set_fraction(usec as u32, *p);
+                    is_fraction_set = true;
                 }
                 Field::AmPm(_) => {
-                    let (am_pm, rem) = parse_ampm(s)?;
-                    s = rem;
-
                     if dt.ampm.is_some() {
                         return Err(Error::ParseError("Duplicate AM/PM".to_string()));
                     }
+                    let (am_pm, rem) = parse_ampm(s)?;
+                    s = rem;
 
                     dt.ampm = Some(am_pm);
                     dt.adjust_hour12();
                 }
+                Field::MonthName(_) => {
+                    if is_month_set {
+                        return Err(Error::ParseError("Duplicate month".to_string()));
+                    }
+                    let (month, rem) = parse_month_name(s)?;
+                    s = rem;
+
+                    dt.month = month as u32;
+                    is_month_set = true;
+                }
+                Field::DayName(_) => {
+                    if dow.is_some() {
+                        return Err(Error::ParseError("Duplicate day of week".to_string()));
+                    }
+                    let (d, rem) = parse_week_day_name(s)?;
+                    s = rem;
+
+                    dow = Some(d);
+                }
+            }
+        }
+
+        if !s.is_empty() {
+            return Err(Error::ParseError(
+                "Format picture ends before converting entire input string".to_string(),
+            ));
+        }
+
+        // Check if parsed day of week conflicts with the date
+        if let Some(d) = dow {
+            let date = Date::try_from(&dt)?;
+            if date.day_of_week() != d {
+                return Err(Error::ParseError(
+                    "Day of week conflicts with Julian date".to_string(),
+                ));
             }
         }
 
@@ -729,7 +990,7 @@ fn expect_char(s: &[u8], expected: u8) -> bool {
 }
 
 #[inline]
-fn parse_number(input: &[u8]) -> Result<(i32, &[u8])> {
+fn parse_number(input: &[u8]) -> Result<(bool, i32, &[u8])> {
     let (negative, s) = match input.first() {
         Some(ch) => match ch {
             b'+' => (false, &input[1..]),
@@ -750,7 +1011,7 @@ fn parse_number(input: &[u8]) -> Result<(i32, &[u8])> {
 
     let int = if negative { -int } else { int };
 
-    Ok((int, s))
+    Ok((negative, int, s))
 }
 
 #[inline]
@@ -772,6 +1033,40 @@ fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
     } else {
         Err(Error::ParseError("AM/PM is missing".to_string()))
     }
+}
+
+#[inline]
+fn parse_month_name(s: &[u8]) -> Result<(Month, &[u8])> {
+    for (index, mon) in MONTH_NAME_TABLE[Capital as usize].iter().enumerate() {
+        if CaseInsensitive::starts_with(s, mon.as_bytes()) {
+            return Ok((Month::from(index + 1), &s[mon.len()..]));
+        }
+    }
+
+    for (index, mon) in MONTH_NAME_TABLE[AbbrCapital as usize].iter().enumerate() {
+        if CaseInsensitive::starts_with(s, mon.as_bytes()) {
+            return Ok((Month::from(index + 1), &s[mon.len()..]));
+        }
+    }
+
+    Err(Error::ParseError("Month is missing".to_string()))
+}
+
+#[inline]
+fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
+    for (index, day) in DAY_NAME_TABLE[Capital as usize].iter().enumerate() {
+        if CaseInsensitive::starts_with(s, day.as_bytes()) {
+            return Ok((WeekDay::from(index + 1), &s[day.len()..]));
+        }
+    }
+
+    for (index, day) in DAY_NAME_TABLE[AbbrCapital as usize].iter().enumerate() {
+        if CaseInsensitive::starts_with(s, day.as_bytes()) {
+            return Ok((WeekDay::from(index + 1), &s[day.len()..]));
+        }
+    }
+
+    Err(Error::ParseError("Week day is missing".to_string()))
 }
 
 pub struct LazyFormat {
@@ -798,6 +1093,9 @@ impl fmt::Display for LazyFormat {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::format::AmPmStyle::{Lower as AmLower, LowerDot, Upper as AmUpper, UpperDot};
+    use crate::format::Field::{AmPm, Blank, DayName, MonthName};
+    use crate::format::NameStyle::{AbbrCapital, AbbrLower, AbbrUpper, Capital, Lower, Upper};
 
     #[test]
     fn test_format_parser() {
@@ -816,5 +1114,50 @@ mod tests {
         assert_eq!(parser.next(), Some(Field::Dot));
         assert_eq!(parser.next(), Some(Field::Fraction(9)));
         assert_eq!(parser.next(), None);
+    }
+
+    #[test]
+    fn test_format_parser_param() {
+        let mut parser = FormatParser::new(
+            b"MONTH Month month MON mon Mon DAY day Day DY Dy dy AM am A.M. a.m.",
+        );
+
+        let expect = [
+            MonthName(Upper),
+            Blank,
+            MonthName(Capital),
+            Blank,
+            MonthName(Lower),
+            Blank,
+            MonthName(AbbrUpper),
+            Blank,
+            MonthName(AbbrLower),
+            Blank,
+            MonthName(AbbrCapital),
+            Blank,
+            DayName(Upper),
+            Blank,
+            DayName(Lower),
+            Blank,
+            DayName(Capital),
+            Blank,
+            DayName(AbbrUpper),
+            Blank,
+            DayName(AbbrCapital),
+            Blank,
+            DayName(AbbrLower),
+            Blank,
+            AmPm(AmUpper),
+            Blank,
+            AmPm(AmLower),
+            Blank,
+            AmPm(UpperDot),
+            Blank,
+            AmPm(LowerDot),
+        ];
+        for e in expect.iter() {
+            assert_eq!(e, &parser.next().unwrap())
+        }
+        assert_eq!(None, parser.next())
     }
 }

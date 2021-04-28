@@ -132,7 +132,7 @@ impl IntervalYM {
     #[inline]
     pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
         let fmt = Formatter::try_new(fmt)?;
-        fmt.parse_interval_ym(input)
+        fmt.parse(input)
     }
 
     #[inline]
@@ -204,8 +204,8 @@ impl TryFrom<NaiveDateTime> for IntervalYM {
 
     #[inline]
     fn try_from(dt: NaiveDateTime) -> Result<Self> {
-        if dt.year.is_negative() {
-            Ok(IntervalYM::try_from_ym(-dt.year as u32, dt.month)?.negate())
+        if dt.negate {
+            Ok(-IntervalYM::try_from_ym(-dt.year as u32, dt.month)?)
         } else {
             IntervalYM::try_from_ym(dt.year as u32, dt.month)
         }
@@ -361,7 +361,7 @@ impl IntervalDT {
     #[inline]
     pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
         let fmt = Formatter::try_new(fmt)?;
-        fmt.parse_interval_dt(input)
+        fmt.parse(input)
     }
 
     #[inline]
@@ -521,9 +521,28 @@ mod tests {
         let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
         assert_eq!(fmt, "-0000-11");
 
-        // TODO
-        // let interval2 = IntervalYM::parse("-0000-11", "yyyy-mm").unwrap();
-        // assert_eq!(interval2, interval);
+        let interval2 = IntervalYM::parse("-0000-11", "yyyy-mm").unwrap();
+        assert_eq!(interval, interval2);
+        let interval2 = IntervalYM::parse("-0000 - 11", "yyyy - mm").unwrap();
+        assert_eq!(interval, interval2);
+
+        let interval = IntervalYM::try_from_value(11).unwrap();
+        let interval2 = IntervalYM::parse("0000-11", "yyyy-mm").unwrap();
+        assert_eq!(interval, interval2);
+
+        let interval = IntervalYM::try_from_ym(12345, 1).unwrap();
+        let interval2 = IntervalYM::parse("12345-1", "yyyy-mm").unwrap();
+        assert_eq!(interval, interval2);
+
+        // Invalid
+        assert!(IntervalYM::parse("178000000-1", "yyyy-mm").is_err());
+        assert!(IntervalYM::parse("178000001-0", "yyyy-mm").is_err());
+        assert!(IntervalYM::parse("-178000001-0", "yyyy-mm").is_err());
+        assert!(IntervalYM::parse("0-13", "yyyy-mm").is_err());
+        assert!(IntervalYM::parse("-178000000-1", "yyyy-mm").is_err());
+        assert!(IntervalYM::parse("-178000001-0", "yyyy-mm").is_err());
+
+        // todo invalid fields
     }
 
     #[test]
@@ -531,14 +550,14 @@ mod tests {
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.value(), 0);
         assert_eq!(interval.extract(), (Positive, 0, 0, 0, 0, 0));
-        let fmt = format!("{}", interval.format("DD HH:MI:SS").unwrap());
+        let fmt = format!("{}", interval.format("DD HH24:MI:SS").unwrap());
         assert_eq!(fmt, "00 00:00:00");
 
         let interval = IntervalDT::try_from_dhms(100000000, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.extract(), (Positive, 100000000, 0, 0, 0, 0));
-        let fmt = format!("{}", interval.format("DD HH:MI:SS").unwrap());
+        let fmt = format!("{}", interval.format("DD HH24:MI:SS").unwrap());
         assert_eq!(fmt, "100000000 00:00:00");
-        let interval2 = IntervalDT::parse("100000000 00:00:00", "DD HH:MI:SS").unwrap();
+        let interval2 = IntervalDT::parse("100000000 00:00:00", "DD HH24:MI:SS").unwrap();
         assert_eq!(interval2, interval);
 
         let interval = -IntervalDT::try_from_dhms(100000000, 0, 0, 0, 0).unwrap();
@@ -554,14 +573,33 @@ mod tests {
 
         let interval = -IntervalDT::try_from_dhms(99999999, 23, 59, 59, 999999).unwrap();
         assert_eq!(interval.extract(), (Negative, 99999999, 23, 59, 59, 999999));
-        let fmt = format!("{}", interval.format("DD HH:MI:SS.FF6").unwrap());
+        let fmt = format!("{}", interval.format("DD HH24:MI:SS.FF6").unwrap());
         assert_eq!(fmt, "-99999999 23:59:59.999999");
+
+        let interval = IntervalDT::try_from_value(-11).unwrap();
+        let interval2 = IntervalDT::parse("-0 00:00:00.000011", "DD HH24:MI:SS.FF6").unwrap();
+        assert_eq!(interval, interval2);
+
+        let interval = IntervalDT::try_from_value(11).unwrap();
+        let interval2 = IntervalDT::parse("0 00:00:00.000011", "DD HH24:MI:SS.FF6").unwrap();
+        assert_eq!(interval, interval2);
+
+        let interval = IntervalDT::try_from_value(-11).unwrap();
+        let interval2 = IntervalDT::parse("-0 00:00:00.000011", "DD HH24:MI:SS.FF").unwrap();
+        assert_eq!(interval, interval2);
+
+        // Invalid
+        assert!(IntervalDT::parse("100000000 02:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
+        assert!(IntervalDT::parse("0 24:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
+        assert!(IntervalDT::parse("100000001 00:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
+        assert!(IntervalDT::parse("-100000001 00:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
+        assert!(IntervalDT::parse("-100000000 02:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
+
+        // Todo Invalid fields
     }
 
     #[test]
     fn test_negate() {
-        // many unused testcases
-        dbg!(IntervalYM::try_from_ym(INTERVAL_MAX_YEAR as u32, 0).unwrap());
         assert_eq!(
             -IntervalDT::try_from_dhms(1, 2, 3, 4, 5).unwrap(),
             IntervalDT::try_from_value(-93784000005).unwrap()
