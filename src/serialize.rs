@@ -17,7 +17,7 @@ impl Serialize for Date {
         if serializer.is_human_readable() {
             let mut buf = String::new();
             DATE_FORMATTER
-                .format_date(*self, &mut buf)
+                .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;
             serializer.serialize_str(&buf)
         } else {
@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for Date {
             where
                 E: de::Error,
             {
-                DATE_FORMATTER.parse_date(v).map_err(de::Error::custom)
+                DATE_FORMATTER.parse(v).map_err(de::Error::custom)
             }
         }
 

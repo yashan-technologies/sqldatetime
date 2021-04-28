@@ -11,6 +11,68 @@ use std::cmp::{min, Ordering};
 use std::convert::TryFrom;
 use std::fmt::Display;
 
+pub const UNIX_EPOCH_DOW: WeekDay = WeekDay::Thursday;
+
+/// Weekdays in the order of 1..=7 Sun..=Sat for formatting and calculation use
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+pub enum WeekDay {
+    Sunday = 1,
+    Monday = 2,
+    Tuesday = 3,
+    Wednesday = 4,
+    Thursday = 5,
+    Friday = 6,
+    Saturday = 7,
+}
+
+impl From<usize> for WeekDay {
+    /// Converts `usize` to `WeekDay` in the order of 1..=7 to Sunday..=Saturday
+    ///
+    /// # Panics
+    /// Panics if `weekday` is out of range of 1..=7
+    #[inline]
+    fn from(weekday: usize) -> Self {
+        use crate::date::WeekDay::*;
+        const WEEKDAY_TABLE: [WeekDay; 7] = [
+            Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday,
+        ];
+        WEEKDAY_TABLE[weekday - 1]
+    }
+}
+
+/// Months in the order of 1..=12 January..=December for formatting use
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+pub enum Month {
+    January = 1,
+    February = 2,
+    March = 3,
+    April = 4,
+    May = 5,
+    June = 6,
+    July = 7,
+    August = 8,
+    September = 9,
+    October = 10,
+    November = 11,
+    December = 12,
+}
+
+impl From<usize> for Month {
+    /// Converts `usize` to `Month` in the order of 1..=12 to January..=December
+    ///
+    /// # Panics
+    /// Panics if `month` is out of range of 1..=12
+    #[inline]
+    fn from(month: usize) -> Self {
+        use crate::date::Month::*;
+        const MONTH_TABLE: [Month; 12] = [
+            January, February, March, April, May, June, July, August, September, October, November,
+            December,
+        ];
+        MONTH_TABLE[month - 1]
+    }
+}
+
 /// Date represents a valid Gregorian date.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
@@ -118,7 +180,7 @@ impl Date {
     #[inline]
     pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
         let fmt = Formatter::try_new(fmt)?;
-        fmt.parse_date(input)
+        fmt.parse(input)
     }
 
     /// Makes a new `Timestamp` from the current date and 00:00:00.
@@ -218,6 +280,19 @@ impl Date {
     pub const fn sub_time(self, time: Time) -> Result<Timestamp> {
         self.and_zero_time().sub_time(time)
     }
+
+    /// Extract day of week (1..=7 Sunday..=Saturday)
+    #[inline]
+    pub fn day_of_week(self) -> WeekDay {
+        // Add offset
+        let mut date = self.value() + UNIX_EPOCH_DOW as i32 - 1;
+        date %= 7;
+        if date < 0 {
+            date += 7;
+        }
+        // Change to 1..=7 (Sun..=Sat)
+        WeekDay::from(date as usize + 1)
+    }
 }
 
 impl From<Date> for NaiveDateTime {
@@ -229,6 +304,7 @@ impl From<Date> for NaiveDateTime {
             year,
             month,
             day,
+            date: Some(date),
             ..NaiveDateTime::new()
         }
     }
@@ -283,6 +359,114 @@ mod tests {
         assert_eq!(date.extract(), (9999, 12, 31));
         let date2 = Date::parse("9999-12-31", "YYYY-MM-DD").unwrap();
         assert_eq!(date2, date);
+
+        // Out of order
+        {
+            // Parse
+
+            let date = Date::try_from_ymd(9999, 12, 31).unwrap();
+            let date2 = Date::parse("PM 9999\\12-31", "AM yyyy\\mm-dd").unwrap();
+            assert_eq!(date2, date);
+
+            let date2 = Date::parse("9999-. 12--31", "YYYY-. MM--DD").unwrap();
+            assert_eq!(date2, date);
+
+            let date2 = Date::parse("31 9999-. 12", "dd YYYY-. MM").unwrap();
+            assert_eq!(date, date2);
+
+            let date2 = Date::parse("-12  31 -9999;", "-MM  DD -yyyy;").unwrap();
+            assert_eq!(date, date2);
+
+            // Format
+            let fmt = date.format("\\YYYY\\ MM-/DD").unwrap();
+            assert_eq!(format!("{}", fmt), "\\9999\\ 12-/31");
+
+            let fmt = date.format("\\YYYY\\ MM-/DD;").unwrap();
+            assert_eq!(format!("{}", fmt), "\\9999\\ 12-/31;");
+        }
+
+        // Duplicate parse
+        {
+            // todo All types duplication check, including parse and format
+        }
+
+        // Default
+        {
+            let date = generate_date(0001, 1, 1);
+            let date2 = Date::parse("5", "ss").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(0001, 1, 1);
+            let date2 = Date::parse("", "").unwrap();
+            assert_eq!(date, date2)
+        }
+
+        // Short format
+        {
+            let date = generate_date(1234, 8, 6);
+            assert_eq!(format!("{}", date.format("YYYY").unwrap()), "1234");
+            assert_eq!(format!("{}", date.format("DD").unwrap()), "06");
+            assert_eq!(format!("{}", date.format("MON").unwrap()), "AUG");
+            assert_eq!(format!("{}", date.format("Mon").unwrap()), "Aug");
+            assert_eq!(format!("{}", date.format("mon").unwrap()), "aug");
+            assert_eq!(format!("{}", date.format("MONTH").unwrap()), "AUGUST");
+            assert_eq!(format!("{}", date.format("MONtH").unwrap()), "AUGUST");
+            assert_eq!(format!("{}", date.format("Month").unwrap()), "August");
+            assert_eq!(format!("{}", date.format("month").unwrap()), "august");
+            assert_eq!(format!("{}", date.format("DAY").unwrap()), "SUNDAY");
+            assert_eq!(format!("{}", date.format("DAy").unwrap()), "SUNDAY");
+            assert_eq!(format!("{}", date.format("Day").unwrap()), "Sunday");
+            assert_eq!(format!("{}", date.format("DaY").unwrap()), "Sunday");
+            assert_eq!(format!("{}", date.format("day").unwrap()), "sunday");
+            assert_eq!(format!("{}", date.format("daY").unwrap()), "sunday");
+            assert_eq!(format!("{}", date.format("DY").unwrap()), "SUN");
+            assert_eq!(format!("{}", date.format("Dy").unwrap()), "Sun");
+            assert_eq!(format!("{}", date.format("dy").unwrap()), "sun");
+        }
+
+        // Normal
+        {
+            let date = generate_date(2000, 1, 1);
+            let fmt = format!("{}", date.format("yyyy-MONTH-dd").unwrap());
+            assert_eq!(fmt, "2000-JANUARY-01");
+
+            let date = generate_date(2000, 1, 1);
+            let fmt = format!("{}", date.format("yyyy-Mon-dd").unwrap());
+            assert_eq!(fmt, "2000-Jan-01");
+
+            let fmt = format!("{}", date.format("Day yyyy-Mon-dd").unwrap());
+            assert_eq!(fmt, "Saturday 2000-Jan-01");
+        }
+
+        // Day parse check
+        {
+            let date = generate_date(2021, 4, 22);
+            let date2 = Date::parse("2021-04-22 thu", "yyyy-mm-dd dy").unwrap();
+            assert_eq!(date, date2);
+
+            assert!(Date::parse("2021-04-23 thur", "yyyy-mm-dd dy",).is_err());
+
+            assert!(Date::parse("2021-04-27 tues", "yyyy-mm-dd dy",).is_err());
+        }
+
+        // Duplicate format
+        {
+            let date = generate_date(2021, 4, 25);
+            assert_eq!(
+                format!("{}", date.format("DAY DaY DY MM MM yyyy YYYY").unwrap()),
+                "SUNDAY Sunday SUN 04 04 2021 2021"
+            );
+        }
+
+        // Invalid
+        {
+            // Parse
+            assert!(Date::parse("2021-04-22", "yyyy-mmX-dd",).is_err());
+            assert!(Date::parse("2021-04-22", "yyy-mm-dd",).is_err());
+            assert!(Date::parse("2021-04-32", "yyyy-mm-dd",).is_err());
+            assert!(Date::parse("10000-04-30", "yyyy-mm-dd",).is_err());
+            assert!(Date::parse("2021-04-22", "ABCD-mm-dd",).is_err());
+        }
     }
 
     fn generate_ts(

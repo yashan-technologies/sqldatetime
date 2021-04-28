@@ -11,7 +11,7 @@ mod timestamp;
 #[cfg(feature = "serde")]
 mod serialize;
 
-pub use crate::date::Date;
+pub use crate::date::{Date, Month, WeekDay};
 pub use crate::error::Error;
 pub use crate::format::Formatter;
 pub use crate::interval::{IntervalDT, IntervalYM};

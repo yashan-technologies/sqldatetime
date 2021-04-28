@@ -120,7 +120,7 @@ impl Time {
     #[inline]
     pub fn parse<S1: AsRef<str>, S2: AsRef<str>>(input: S1, fmt: S2) -> Result<Self> {
         let fmt = Formatter::try_new(fmt)?;
-        fmt.parse_time(input)
+        fmt.parse(input)
     }
 
     /// `Time` subtracts `Time`
@@ -221,6 +221,49 @@ mod tests {
         assert_eq!(time.extract(), (23, 59, 59, 999999));
         let time2 = Time::parse("23:59:59.999999", "HH:MI:SS.FF").unwrap();
         assert_eq!(time2, time);
+
+        // Out of order
+        {
+            // Parse
+            let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
+            let time2 = Time::parse("999999 59:23:59", "FF MI:HH:SS").unwrap();
+            assert_eq!(time2, time);
+
+            // Format
+            let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
+            let fmt = time.format("AM MI-HH/SS\\FF4").unwrap();
+            assert_eq!(format!("{}", fmt), "PM 59-11/59\\9999");
+        }
+
+        // Default parse
+        {
+            let time = Time::try_from_hms(0, 0, 1, 0).unwrap();
+            let time2 = Time::parse("01", "SS").unwrap();
+            assert_eq!(time2, time);
+        }
+
+        // Short Format
+        {
+            let time = Time::try_from_hms(7, 8, 9, 10).unwrap();
+            assert_eq!(format!("{}", time.format("mi").unwrap()), "08");
+            assert_eq!(format!("{}", time.format("hh").unwrap()), "07");
+            assert_eq!(format!("{}", time.format("ss").unwrap()), "09");
+            assert_eq!(format!("{}", time.format("FF").unwrap()), "000010");
+        }
+
+        // Invalid
+        {
+            assert!(Time::parse("60", "SS").is_err());
+            assert!(Time::parse("60", "mi").is_err());
+            assert!(Time::parse("60", "hh").is_err());
+            assert!(Time::parse("60", "hh").is_err());
+            assert!(Time::parse("99999999", "FF").is_err());
+
+            let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
+            assert!(time.format("testtest").is_err())
+
+            // todo Add all types check
+        }
     }
 
     #[test]
