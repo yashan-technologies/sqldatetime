@@ -890,7 +890,7 @@ impl Formatter {
                         return Err(Error::ParseError("Duplicate day".to_string()));
                     }
                     let (day, negate) = expect_number!();
-                    dt.day = day as u32;
+                    dt.day = day.abs() as u32;
                     dt.negate = negate;
                     is_day_set = true;
                 }
