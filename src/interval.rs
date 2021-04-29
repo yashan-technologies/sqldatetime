@@ -588,6 +588,10 @@ mod tests {
         let interval2 = IntervalDT::parse("-0 00:00:00.000011", "DD HH24:MI:SS.FF").unwrap();
         assert_eq!(interval, interval2);
 
+        let interval = IntervalDT::try_from_dhms(12, 4, 5, 6, 0).unwrap().negate();
+        let interval2 = IntervalDT::parse("-12 4:5:6", "DD HH24:MI:SS").unwrap();
+        assert_eq!(interval, interval2);
+
         // Invalid
         assert!(IntervalDT::parse("100000000 02:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
         assert!(IntervalDT::parse("0 24:00:00:00.0", "DD HH24:MI:SS.FF").is_err());
