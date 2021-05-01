@@ -7,8 +7,8 @@ use crate::common::{
 use crate::error::{Error, Result};
 use crate::format::{LazyFormat, NaiveDateTime};
 use crate::interval::Sign::{Negative, Positive};
-use crate::Formatter;
 use crate::Time;
+use crate::{DateTime, Formatter};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -209,6 +209,47 @@ impl TryFrom<NaiveDateTime> for IntervalYM {
         } else {
             IntervalYM::try_from_ym(dt.year as u32, dt.month)
         }
+    }
+}
+
+impl Neg for IntervalYM {
+    type Output = IntervalYM;
+
+    #[inline]
+    fn neg(self) -> Self::Output {
+        self.negate()
+    }
+}
+
+impl DateTime for IntervalYM {
+    #[inline(always)]
+    fn year(&self) -> Option<i32> {
+        Some(self.value() / MONTHS_PER_YEAR as i32)
+    }
+
+    #[inline(always)]
+    fn month(&self) -> Option<i32> {
+        Some(self.value() % MONTHS_PER_YEAR as i32)
+    }
+
+    #[inline(always)]
+    fn day(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn hour(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn minute(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn second(&self) -> Option<f64> {
+        None
     }
 }
 
@@ -472,12 +513,38 @@ impl Neg for IntervalDT {
     }
 }
 
-impl Neg for IntervalYM {
-    type Output = IntervalYM;
+impl DateTime for IntervalDT {
+    #[inline(always)]
+    fn year(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn month(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn day(&self) -> Option<i32> {
+        Some((self.value() / USECONDS_PER_DAY) as i32)
+    }
+
+    #[inline(always)]
+    fn hour(&self) -> Option<i32> {
+        let remain_time = self.value() % USECONDS_PER_DAY;
+        Some((remain_time / USECONDS_PER_HOUR) as i32)
+    }
+
+    #[inline(always)]
+    fn minute(&self) -> Option<i32> {
+        let remain_time = self.value() % USECONDS_PER_HOUR;
+        Some((remain_time / USECONDS_PER_MINUTE) as i32)
+    }
 
     #[inline]
-    fn neg(self) -> Self::Output {
-        self.negate()
+    fn second(&self) -> Option<f64> {
+        let remain_time = self.value() % USECONDS_PER_MINUTE;
+        Some(remain_time as f64 / USECONDS_PER_SECOND as f64)
     }
 }
 
@@ -603,7 +670,7 @@ mod tests {
     }
 
     #[test]
-    fn test_negate() {
+    fn test_interval_negate() {
         assert_eq!(
             -IntervalDT::try_from_dhms(1, 2, 3, 4, 5).unwrap(),
             IntervalDT::try_from_value(-93784000005).unwrap()
@@ -698,7 +765,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_sub_interval_ym() {
+    fn test_interval_ym_add_sub_interval_ym() {
         assert!(IntervalYM::try_from_ym(178000000, 0)
             .unwrap()
             .add_interval_ym(IntervalYM::try_from_ym(0, 1).unwrap())
@@ -737,7 +804,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_sub_interval_dt() {
+    fn test_interval_dt_add_sub_interval_dt() {
         assert!(IntervalDT::try_from_dhms(100000000, 0, 0, 0, 0)
             .unwrap()
             .add_interval_dt(IntervalDT::try_from_dhms(0, 0, 0, 0, 1).unwrap())
@@ -949,7 +1016,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_time() {
+    fn test_interval_dt_sub_time() {
         // Out of range
         assert!(
             IntervalDT::try_from_dhms(INTERVAL_MAX_DAY as u32, 0, 0, 0, 0)
@@ -967,5 +1034,72 @@ mod tests {
                 .unwrap(),
             -IntervalDT::try_from_dhms(0, 1, 2, 3, 4).unwrap()
         );
+    }
+
+    fn test_extract_ym(negate: bool, year: u32, month: u32) {
+        let interval = if negate {
+            IntervalYM::try_from_ym(year, month).unwrap().negate()
+        } else {
+            IntervalYM::try_from_ym(year, month).unwrap()
+        };
+
+        let modifier = if negate { -1 } else { 1 };
+
+        assert_eq!(year as i32 * modifier, interval.year().unwrap());
+        assert_eq!(month as i32 * modifier, interval.month().unwrap());
+
+        assert!(interval.hour().is_none());
+        assert!(interval.day().is_none());
+        assert!(interval.minute().is_none());
+        assert!(interval.second().is_none());
+    }
+
+    #[test]
+    fn test_interval_ym_extract() {
+        test_extract_ym(false, 0, 0);
+        test_extract_ym(false, 0, 1);
+        test_extract_ym(false, 1, 1);
+        test_extract_ym(false, 1234, 11);
+        test_extract_ym(false, 178000000, 0);
+        test_extract_ym(true, 0, 1);
+        test_extract_ym(true, 1, 1);
+        test_extract_ym(true, 1234, 11);
+        test_extract_ym(true, 178000000, 0);
+    }
+
+    fn test_extract_dt(negate: bool, day: u32, hour: u32, min: u32, sec: u32, usec: u32) {
+        let interval = if negate {
+            IntervalDT::try_from_dhms(day, hour, min, sec, usec)
+                .unwrap()
+                .negate()
+        } else {
+            IntervalDT::try_from_dhms(day, hour, min, sec, usec).unwrap()
+        };
+
+        let modifier = if negate { -1 } else { 1 };
+
+        assert_eq!(day as i32 * modifier, interval.day().unwrap());
+        assert_eq!(hour as i32 * modifier, interval.hour().unwrap());
+        assert_eq!(min as i32 * modifier, interval.minute().unwrap());
+        assert_eq!(
+            modifier as f64 * (sec as f64 + (usec as f64) / 1_000_000f64),
+            interval.second().unwrap()
+        );
+        assert!(interval.year().is_none());
+        assert!(interval.month().is_none());
+    }
+
+    #[test]
+    fn test_interval_dt_extract() {
+        test_extract_dt(false, 0, 0, 0, 0, 0);
+        test_extract_dt(false, 0, 0, 0, 0, 1);
+        test_extract_dt(false, 1, 0, 0, 0, 1);
+        test_extract_dt(false, 9999, 23, 59, 59, 999999);
+        test_extract_dt(false, 100000000, 0, 0, 0, 0);
+        test_extract_dt(true, 0, 0, 0, 0, 1);
+        test_extract_dt(true, 1, 0, 0, 0, 1);
+        test_extract_dt(true, 9999, 23, 59, 59, 999999);
+        test_extract_dt(true, 9999, 23, 59, 59, 375473);
+        test_extract_dt(true, 100000000, 0, 0, 0, 0);
     }
 }

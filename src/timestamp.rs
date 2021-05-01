@@ -3,7 +3,7 @@
 use crate::common::{is_valid_timestamp, USECONDS_PER_DAY};
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{Date, IntervalDT, IntervalYM, Time};
+use crate::{Date, DateTime, IntervalDT, IntervalYM, Time};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -237,6 +237,38 @@ impl From<Date> for Timestamp {
     #[inline]
     fn from(date: Date) -> Self {
         date.and_zero_time()
+    }
+}
+
+impl DateTime for Timestamp {
+    #[inline]
+    fn year(&self) -> Option<i32> {
+        self.date().year()
+    }
+
+    #[inline]
+    fn month(&self) -> Option<i32> {
+        self.date().month()
+    }
+
+    #[inline]
+    fn day(&self) -> Option<i32> {
+        self.date().day()
+    }
+
+    #[inline]
+    fn hour(&self) -> Option<i32> {
+        self.time().hour()
+    }
+
+    #[inline]
+    fn minute(&self) -> Option<i32> {
+        self.time().minute()
+    }
+
+    #[inline]
+    fn second(&self) -> Option<f64> {
+        self.time().second()
     }
 }
 
@@ -854,7 +886,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_sub_time() {
+    fn test_timestamp_add_sub_time() {
         // Normal test
         let ts = generate_ts(1234, 5, 6, 7, 8, 9, 10);
         let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
@@ -888,7 +920,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_timestamp() {
+    fn test_timestamp_sub_timestamp() {
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
         let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
         let ts = generate_ts(5000, 6, 15, 12, 30, 30, 500000);
@@ -910,7 +942,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_date() {
+    fn test_timestamp_sub_date() {
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
         let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
         let lower_date = Date::try_from_ymd(0001, 1, 1).unwrap();
@@ -934,7 +966,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_sub_days() {
+    fn test_timestamp_add_sub_days() {
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
         let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
 
@@ -989,5 +1021,32 @@ mod tests {
         assert!(ts > date);
         let ts = generate_ts(1970, 1, 1, 0, 0, 0, 0);
         assert!(ts == date);
+    }
+
+    fn test_extract(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32, usec: u32) {
+        let ts = generate_ts(year, month, day, hour, min, sec, usec);
+        assert_eq!(year, ts.year().unwrap());
+        assert_eq!(month as i32, ts.month().unwrap());
+        assert_eq!(day as i32, ts.day().unwrap());
+        assert_eq!(hour as i32, ts.hour().unwrap());
+        assert_eq!(min as i32, ts.minute().unwrap());
+        assert_eq!(
+            (sec as f64 + (usec as f64) / 1_000_000f64),
+            ts.second().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_timestamp_extract() {
+        test_extract(1960, 12, 31, 23, 59, 59, 999999);
+        test_extract(0001, 1, 1, 0, 0, 0, 0);
+        test_extract(0001, 1, 1, 1, 1, 1, 1);
+        test_extract(1969, 12, 31, 1, 2, 3, 4);
+        test_extract(1969, 12, 30, 23, 59, 59, 999999);
+        test_extract(1969, 12, 30, 0, 0, 0, 0);
+        test_extract(1970, 1, 1, 0, 0, 0, 0);
+        test_extract(1970, 1, 1, 12, 30, 30, 30);
+        test_extract(1999, 10, 21, 12, 30, 30, 30);
+        test_extract(9999, 12, 31, 23, 59, 59, 999999);
     }
 }

@@ -17,3 +17,19 @@ pub use crate::format::Formatter;
 pub use crate::interval::{IntervalDT, IntervalYM};
 pub use crate::time::Time;
 pub use crate::timestamp::Timestamp;
+
+/// General trait for all date time types.
+pub trait DateTime {
+    /// Extracts year from date time.
+    fn year(&self) -> Option<i32>;
+    /// Extracts month from date time.
+    fn month(&self) -> Option<i32>;
+    /// Extracts day from date time.
+    fn day(&self) -> Option<i32>;
+    /// Extracts hour from date time.
+    fn hour(&self) -> Option<i32>;
+    /// Extracts minute from date time.
+    fn minute(&self) -> Option<i32>;
+    /// Extracts second from date time.
+    fn second(&self) -> Option<f64>;
+}

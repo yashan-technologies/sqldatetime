@@ -6,7 +6,7 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::IntervalDT;
+use crate::{DateTime, IntervalDT};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -206,6 +206,40 @@ impl TryFrom<NaiveDateTime> for Time {
     }
 }
 
+impl DateTime for Time {
+    #[inline(always)]
+    fn year(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn month(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn day(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn hour(&self) -> Option<i32> {
+        Some((self.value() / USECONDS_PER_HOUR) as i32)
+    }
+
+    #[inline(always)]
+    fn minute(&self) -> Option<i32> {
+        let remain_time = self.value() % USECONDS_PER_HOUR;
+        Some((remain_time / USECONDS_PER_MINUTE) as i32)
+    }
+
+    #[inline(always)]
+    fn second(&self) -> Option<f64> {
+        let remain_time = self.value() % USECONDS_PER_MINUTE;
+        Some(remain_time as f64 / USECONDS_PER_SECOND as f64)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -267,7 +301,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sub_time() {
+    fn test_time_sub_time() {
         assert_eq!(
             Time::try_from_hms(0, 0, 0, 0)
                 .unwrap()
@@ -434,5 +468,29 @@ mod tests {
             .unwrap()
             .div_f64(0.0)
             .is_err());
+    }
+
+    fn test_extract(hour: u32, min: u32, sec: u32, usec: u32) {
+        let time = Time::try_from_hms(hour, min, sec, usec).unwrap();
+
+        assert_eq!(hour as i32, time.hour().unwrap());
+        assert_eq!(min as i32, time.minute().unwrap());
+        assert_eq!(
+            (sec as f64) + (usec as f64) / 1_000_000f64,
+            time.second().unwrap()
+        );
+
+        assert!(time.year().is_none());
+        assert!(time.month().is_none());
+        assert!(time.day().is_none());
+    }
+
+    #[test]
+    fn test_time_extract() {
+        test_extract(0, 0, 0, 0);
+        test_extract(1, 2, 3, 4);
+        test_extract(12, 0, 0, 0);
+        test_extract(16, 34, 59, 356);
+        test_extract(23, 59, 59, 999999);
     }
 }
