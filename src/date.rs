@@ -6,7 +6,7 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{IntervalDT, IntervalYM, Time, Timestamp};
+use crate::{DateTime, IntervalDT, IntervalYM, Time, Timestamp};
 use std::cmp::{min, Ordering};
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -339,6 +339,41 @@ impl TryFrom<NaiveDateTime> for Date {
     #[inline]
     fn try_from(dt: NaiveDateTime) -> Result<Self> {
         Date::try_from(&dt)
+    }
+}
+
+impl DateTime for Date {
+    #[inline]
+    fn year(&self) -> Option<i32> {
+        let (year, _, _) = self.extract();
+        Some(year)
+    }
+
+    #[inline]
+    fn month(&self) -> Option<i32> {
+        let (_, month, _) = self.extract();
+        Some(month as i32)
+    }
+
+    #[inline]
+    fn day(&self) -> Option<i32> {
+        let (_, _, day) = self.extract();
+        Some(day as i32)
+    }
+
+    #[inline(always)]
+    fn hour(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn minute(&self) -> Option<i32> {
+        None
+    }
+
+    #[inline(always)]
+    fn second(&self) -> Option<f64> {
+        None
     }
 }
 
@@ -838,5 +873,27 @@ mod tests {
         assert!(date < ts);
         let ts = generate_ts(1970, 1, 1, 0, 0, 0, 0);
         assert!(date == ts);
+    }
+
+    fn test_extract(year: i32, month: u32, day: u32) {
+        let date = generate_date(year, month, day);
+        assert_eq!(year, date.year().unwrap());
+        assert_eq!(month as i32, date.month().unwrap());
+        assert_eq!(day as i32, date.day().unwrap());
+
+        assert!(date.hour().is_none());
+        assert!(date.minute().is_none());
+        assert!(date.second().is_none());
+    }
+
+    #[test]
+    fn test_date_extract() {
+        test_extract(1960, 12, 31);
+        test_extract(0001, 1, 1);
+        test_extract(1969, 12, 31);
+        test_extract(1969, 12, 30);
+        test_extract(1970, 1, 1);
+        test_extract(1999, 10, 21);
+        test_extract(9999, 12, 31);
     }
 }
