@@ -125,7 +125,7 @@ impl IntervalYM {
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
         let fmt = Formatter::try_new(fmt)?;
-        Ok(LazyFormat::new(fmt, self.into()))
+        Ok(LazyFormat::new(fmt, self))
     }
 
     /// Parses `IntervalYM` from given string and format.
@@ -395,7 +395,7 @@ impl IntervalDT {
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
         let fmt = Formatter::try_new(fmt)?;
-        Ok(LazyFormat::new(fmt, self.into()))
+        Ok(LazyFormat::new(fmt, self))
     }
 
     /// Parses `IntervalDT` from given string and format.

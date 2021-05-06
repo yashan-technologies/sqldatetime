@@ -4,7 +4,7 @@ use crate::common::DATE_MIN_YEAR;
 use crate::date::{Month, WeekDay};
 use crate::error::Result;
 use crate::format::NameStyle::{AbbrCapital, Capital};
-use crate::{Date, Error};
+use crate::{Date, DateTime, Error, IntervalDT, IntervalYM, Time, Timestamp};
 use stack_buf::StackVec;
 use std::convert::TryFrom;
 use std::fmt;
@@ -101,6 +101,34 @@ pub const DAY_NAME_TABLE: [[&str; 7]; 6] = [
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
     ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
 ];
+
+pub trait DateTimeFormat {
+    const YEAR_MAX_LENGTH: usize = 4;
+
+    const MONTH_MAX_LENGTH: usize = 2;
+
+    const DAY_MAX_LENGTH: usize = 2;
+
+    const HOUR_MAX_LENGTH: usize = 2;
+
+    const MINUTE_MAX_LENGTH: usize = 2;
+
+    const SECOND_MAX_LENGTH: usize = 2;
+}
+
+impl DateTimeFormat for Date {}
+
+impl DateTimeFormat for Time {}
+
+impl DateTimeFormat for Timestamp {}
+
+impl DateTimeFormat for IntervalYM {
+    const YEAR_MAX_LENGTH: usize = 9;
+}
+
+impl DateTimeFormat for IntervalDT {
+    const DAY_MAX_LENGTH: usize = 9;
+}
 
 #[derive(Debug)]
 pub struct NaiveDateTime {
@@ -760,13 +788,12 @@ impl Formatter {
 
     /// Formats datetime types
     #[inline]
-    pub fn format<W: fmt::Write, T: Into<NaiveDateTime>>(&self, datetime: T, w: W) -> Result<()> {
-        let dt: NaiveDateTime = datetime.into();
-        self.internal_format(&dt, w)
-    }
-
-    #[inline]
-    fn internal_format<W: fmt::Write>(&self, dt: &NaiveDateTime, mut w: W) -> Result<()> {
+    pub fn format<W: fmt::Write, T: Into<NaiveDateTime>>(
+        &self,
+        datetime: T,
+        mut w: W,
+    ) -> Result<()> {
+        let dt = datetime.into();
         if dt.negate() {
             // negate interval
             w.write_char('-')?;
@@ -812,16 +839,14 @@ impl Formatter {
 
     /// Parses datetime types
     #[inline]
-    pub fn parse<S: AsRef<str>, T: TryFrom<NaiveDateTime, Error = Error>>(
+    pub fn parse<
+        S: AsRef<str>,
+        T: TryFrom<NaiveDateTime, Error = Error> + DateTime + DateTimeFormat,
+    >(
         &self,
         input: S,
     ) -> Result<T> {
-        self.internal_parse(input.as_ref())
-    }
-
-    #[inline]
-    fn internal_parse<T: TryFrom<NaiveDateTime, Error = Error>>(&self, input: &str) -> Result<T> {
-        let mut s = input.as_bytes();
+        let mut s = input.as_ref().as_bytes();
 
         let mut dt = NaiveDateTime::new();
 
@@ -832,15 +857,15 @@ impl Formatter {
                 } else {
                     return Err(Error::ParseError(format!(
                         "the input is inconsistent with the format: {}",
-                        input
+                        input.as_ref()
                     )));
                 }
             }};
         }
 
         macro_rules! expect_number {
-            () => {{
-                let (neg, n, rem) = parse_number(s)?;
+            ($max_len: expr) => {{
+                let (neg, n, rem) = parse_number(s, $max_len)?;
                 s = rem;
                 (n, neg)
             }};
@@ -872,7 +897,7 @@ impl Formatter {
                     if is_year_set {
                         return Err(Error::ParseError("Duplicate year".to_string()));
                     }
-                    let (year, negate) = expect_number!();
+                    let (year, negate) = expect_number!(T::YEAR_MAX_LENGTH);
                     dt.year = year;
                     dt.negate = negate;
                     is_year_set = true;
@@ -881,7 +906,7 @@ impl Formatter {
                     if is_month_set {
                         return Err(Error::ParseError("Duplicate month".to_string()));
                     }
-                    let (month, _) = expect_number!();
+                    let (month, _) = expect_number!(T::MONTH_MAX_LENGTH);
                     dt.month = month as u32;
                     is_month_set = true;
                 }
@@ -889,21 +914,21 @@ impl Formatter {
                     if is_day_set {
                         return Err(Error::ParseError("Duplicate day".to_string()));
                     }
-                    let (day, negate) = expect_number!();
+                    let (day, negate) = expect_number!(T::DAY_MAX_LENGTH);
                     dt.day = day.abs() as u32;
                     dt.negate = negate;
                     is_day_set = true;
                 }
                 Field::Hour24 => {
                     // todo hh24 excludes hh12 and ampm
-                    let (hour, _) = expect_number!();
+                    let (hour, _) = expect_number!(T::HOUR_MAX_LENGTH);
                     dt.hour = hour as u32;
                 }
                 Field::Hour12 => {
                     if is_hour_set {
                         return Err(Error::ParseError("Duplicate hour".to_string()));
                     }
-                    let (hour, _) = expect_number!();
+                    let (hour, _) = expect_number!(T::HOUR_MAX_LENGTH);
                     dt.hour = hour as u32;
                     dt.adjust_hour12();
                     is_hour_set = true;
@@ -912,7 +937,7 @@ impl Formatter {
                     if is_min_set {
                         return Err(Error::ParseError("Duplicate minute".to_string()));
                     }
-                    let (minute, _) = expect_number!();
+                    let (minute, _) = expect_number!(T::MINUTE_MAX_LENGTH);
                     dt.minute = minute as u32;
                     is_min_set = true;
                 }
@@ -920,7 +945,7 @@ impl Formatter {
                     if is_sec_set {
                         return Err(Error::ParseError("Duplicate second".to_string()));
                     }
-                    let (sec, _) = expect_number!();
+                    let (sec, _) = expect_number!(T::SECOND_MAX_LENGTH);
                     dt.sec = sec as u32;
                     is_sec_set = true;
                 }
@@ -928,7 +953,7 @@ impl Formatter {
                     if is_fraction_set {
                         return Err(Error::ParseError("Duplicate minute".to_string()));
                     }
-                    let (usec, _) = expect_number!();
+                    let (usec, _) = expect_number!(*p as usize);
                     dt.set_fraction(usec as u32, *p);
                     is_fraction_set = true;
                 }
@@ -990,7 +1015,7 @@ fn expect_char(s: &[u8], expected: u8) -> bool {
 }
 
 #[inline]
-fn parse_number(input: &[u8]) -> Result<(bool, i32, &[u8])> {
+fn parse_number(input: &[u8], max_len: usize) -> Result<(bool, i32, &[u8])> {
     let (negative, s) = match input.first() {
         Some(ch) => match ch {
             b'+' => (false, &input[1..]),
@@ -1000,7 +1025,7 @@ fn parse_number(input: &[u8]) -> Result<(bool, i32, &[u8])> {
         None => return Err(Error::ParseError("Invalid number".to_string())),
     };
 
-    let (digits, s) = eat_digits(s);
+    let (digits, s) = eat_digits(s, max_len);
     if digits.is_empty() || digits.len() > 9 {
         return Err(Error::ParseError("Invalid number".to_string()));
     }
@@ -1015,8 +1040,12 @@ fn parse_number(input: &[u8]) -> Result<(bool, i32, &[u8])> {
 }
 
 #[inline]
-fn eat_digits(s: &[u8]) -> (&[u8], &[u8]) {
-    let i = s.iter().take_while(|&i| i.is_ascii_digit()).count();
+fn eat_digits(s: &[u8], max_len: usize) -> (&[u8], &[u8]) {
+    let i = s
+        .iter()
+        .take(max_len)
+        .take_while(|&i| i.is_ascii_digit())
+        .count();
     (&s[..i], &s[i..])
 }
 
@@ -1069,24 +1098,22 @@ fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
     Err(Error::ParseError("Week day is missing".to_string()))
 }
 
-pub struct LazyFormat {
+pub struct LazyFormat<T: Into<NaiveDateTime>> {
     fmt: Formatter,
-    dt: NaiveDateTime,
+    dt: T,
 }
 
-impl LazyFormat {
+impl<T: Into<NaiveDateTime>> LazyFormat<T> {
     #[inline]
-    pub const fn new(fmt: Formatter, dt: NaiveDateTime) -> Self {
+    pub fn new(fmt: Formatter, dt: T) -> Self {
         LazyFormat { fmt, dt }
     }
 }
 
-impl fmt::Display for LazyFormat {
+impl<T: Into<NaiveDateTime> + Copy> fmt::Display for LazyFormat<T> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.fmt
-            .internal_format(&self.dt, f)
-            .map_err(|_| fmt::Error)
+        self.fmt.format(self.dt, f).map_err(|_| fmt::Error)
     }
 }
 

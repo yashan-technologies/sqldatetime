@@ -113,7 +113,7 @@ impl Time {
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
         let fmt = Formatter::try_new(fmt)?;
-        Ok(LazyFormat::new(fmt, self.into()))
+        Ok(LazyFormat::new(fmt, self))
     }
 
     /// Parses `Time` from given string and format.
@@ -255,6 +255,12 @@ mod tests {
         assert_eq!(time.extract(), (23, 59, 59, 999999));
         let time2 = Time::parse("23:59:59.999999", "HH:MI:SS.FF").unwrap();
         assert_eq!(time2, time);
+        let time2 = Time::parse("235959999999", "HHMISSFF").unwrap();
+        assert_eq!(time2, time);
+
+        let time = Time::try_from_hms(23, 59, 5, 0).unwrap();
+        let time2 = Time::parse("23595", "HHMISS").unwrap();
+        assert_eq!(time2, time);
 
         // Out of order
         {
@@ -293,6 +299,7 @@ mod tests {
             assert!(Time::parse("60", "hh").is_err());
             assert!(Time::parse("99999999", "FF").is_err());
 
+            assert!(Time::parse("23635", "HHMISS").is_err());
             let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
             assert!(time.format("testtest").is_err())
 
