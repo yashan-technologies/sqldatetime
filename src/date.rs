@@ -173,7 +173,7 @@ impl Date {
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
         let fmt = Formatter::try_new(fmt)?;
-        Ok(LazyFormat::new(fmt, self.into()))
+        Ok(LazyFormat::new(fmt, self))
     }
 
     /// Parses `Date` from given string and format.
@@ -471,6 +471,16 @@ mod tests {
 
             let fmt = format!("{}", date.format("Day yyyy-Mon-dd").unwrap());
             assert_eq!(fmt, "Saturday 2000-Jan-01");
+
+            let fmt = format!("{}", date.format("yyyyMMdd").unwrap());
+            assert_eq!(fmt, "20000101");
+
+            let date = generate_date(2001, 1, 2);
+            assert_eq!(format!("{}", date.format("YYYYMMDD").unwrap()), "20010102");
+
+            assert_eq!(date, Date::parse("20010102", "YYYYMMDD").unwrap());
+
+            assert_eq!(date, Date::parse("2001012", "YYYYMMDD").unwrap());
         }
 
         // Day parse check
@@ -501,6 +511,7 @@ mod tests {
             assert!(Date::parse("2021-04-32", "yyyy-mm-dd",).is_err());
             assert!(Date::parse("10000-04-30", "yyyy-mm-dd",).is_err());
             assert!(Date::parse("2021-04-22", "ABCD-mm-dd",).is_err());
+            assert!(Date::parse("2021423", "yyyymmdd",).is_err());
         }
     }
 

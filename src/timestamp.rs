@@ -88,7 +88,7 @@ impl Timestamp {
     #[inline]
     pub fn format<S: AsRef<str>>(self, fmt: S) -> Result<impl Display> {
         let fmt = Formatter::try_new(fmt)?;
-        Ok(LazyFormat::new(fmt, self.into()))
+        Ok(LazyFormat::new(fmt, self))
     }
 
     /// Parses `Timestamp` from given string and format.
@@ -514,12 +514,30 @@ mod tests {
                 let fmt = format!("{}", ts.format("yyyy-MONTH-dd hh:mi:ss.ff1").unwrap());
                 assert_eq!(fmt, "2000-JANUARY-01 12:00:00.0");
 
-                let ts = generate_ts(2000, 1, 1, 0, 00, 0, 0);
                 let fmt = format!("{}", ts.format("yyyy-Mon-dd hh:mi:ss.ff1").unwrap());
                 assert_eq!(fmt, "2000-Jan-01 12:00:00.0");
 
                 let fmt = format!("{}", ts.format("Day yyyy-Mon-dd hh:mi:ss.ff1").unwrap());
                 assert_eq!(fmt, "Saturday 2000-Jan-01 12:00:00.0");
+
+                let fmt = format!("{}", ts.format("yyyyMMdd hh24miss.ff1").unwrap());
+                assert_eq!(fmt, "20000101 000000.0");
+
+                let ts = generate_ts(2001, 1, 2, 3, 4, 5, 6);
+                assert_eq!(
+                    format!("{}", ts.format("YYYYMMDDHHMISSFF").unwrap()),
+                    "20010102030405000006"
+                );
+
+                assert_eq!(
+                    ts,
+                    Timestamp::parse("20010102030405000006", "YYYYMMDDHHMISSFF").unwrap()
+                );
+
+                assert_eq!(
+                    ts,
+                    Timestamp::parse("2001012 030405000006", "YYYYMMDD HHMISSFF").unwrap()
+                );
             }
 
             // Day parse check
@@ -621,6 +639,16 @@ mod tests {
                     "yyyy-mm-dd hh24:mi:ss.FF6 dy",
                 )
                 .is_err());
+
+                assert!(
+                    Timestamp::parse("2021423 03:04:05.000006", "yyyymmdd hh24:mi:ss.FF6",)
+                        .is_err()
+                );
+
+                assert!(
+                    Timestamp::parse("2021423 03:04:05.000006", "yyyymmdd hh24:mi:ss.FF3",)
+                        .is_err()
+                );
 
                 let timestamp = generate_ts(1234, 5, 6, 7, 8, 9, 10);
                 assert!(timestamp.format("testtest").is_err());
