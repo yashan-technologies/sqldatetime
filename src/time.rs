@@ -20,8 +20,8 @@ impl Time {
     /// The zero time that can be represented by `Time`, i.e. `00:00:00.000000`.
     pub const ZERO: Self = unsafe { Time::from_hms_unchecked(0, 0, 0, 0) };
 
-    /// The max time that can be represented by `Time`, i.e. `59:59:59.999999`.
-    pub const MAX: Self = unsafe { Time::from_hms_unchecked(59, 59, 59, 999999) };
+    /// The max time that can be represented by `Time`, i.e. `23:59:59.999999`.
+    pub const MAX: Self = unsafe { Time::from_hms_unchecked(23, 59, 59, 999999) };
 
     /// Creates a `Time` from the given hour, minute, second and microsecond.
     ///
