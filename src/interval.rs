@@ -490,6 +490,13 @@ impl TryFrom<NaiveDateTime> for IntervalDT {
     }
 }
 
+impl From<Time> for IntervalDT {
+    #[inline]
+    fn from(time: Time) -> Self {
+        unsafe { IntervalDT::from_value_unchecked(time.value()) }
+    }
+}
+
 impl PartialEq<Time> for IntervalDT {
     #[inline]
     fn eq(&self, other: &Time) -> bool {
@@ -554,6 +561,16 @@ mod tests {
 
     #[test]
     fn test_interval_ym() {
+        assert_eq!(IntervalYM::ZERO, IntervalYM::try_from_ym(0, 0).unwrap());
+        assert_eq!(
+            IntervalYM::MIN,
+            -IntervalYM::try_from_ym(178000000, 0).unwrap()
+        );
+        assert_eq!(
+            IntervalYM::MAX,
+            IntervalYM::try_from_ym(178000000, 0).unwrap()
+        );
+
         let interval = IntervalYM::try_from_ym(0, 0).unwrap();
         assert_eq!(interval.value(), 0);
         assert_eq!(interval.extract(), (Positive, 0, 0));
@@ -614,6 +631,34 @@ mod tests {
 
     #[test]
     fn test_interval_dt() {
+        assert_eq!(
+            IntervalDT::ZERO,
+            IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            IntervalDT::MIN,
+            -IntervalDT::try_from_dhms(100_000_000, 0, 0, 0, 0).unwrap()
+        );
+        assert_eq!(
+            IntervalDT::MAX,
+            IntervalDT::try_from_dhms(100_000_000, 0, 0, 0, 0).unwrap()
+        );
+
+        let time = Time::try_from_hms(0, 0, 0, 0).unwrap();
+        let interval = IntervalDT::from(time);
+        assert_eq!(IntervalDT::ZERO, interval);
+
+        let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
+        let interval = IntervalDT::from(time);
+        assert_eq!(IntervalDT::try_from_dhms(0, 1, 2, 3, 4).unwrap(), interval);
+
+        let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
+        let interval = IntervalDT::from(time);
+        assert_eq!(
+            IntervalDT::try_from_dhms(0, 23, 59, 59, 999999).unwrap(),
+            interval
+        );
+
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap();
         assert_eq!(interval.value(), 0);
         assert_eq!(interval.extract(), (Positive, 0, 0, 0, 0, 0));
