@@ -246,6 +246,9 @@ mod tests {
 
     #[test]
     fn test_time() {
+        assert_eq!(Time::ZERO, Time::try_from_hms(0, 0, 0, 0).unwrap());
+        assert_eq!(Time::MAX, Time::try_from_hms(23, 59, 59, 999999).unwrap());
+
         let time = Time::try_from_hms(0, 0, 0, 0).unwrap();
         assert_eq!(time.value(), 0);
         assert_eq!(time.extract(), (0, 0, 0, 0));
