@@ -854,7 +854,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timestamp_sub_timestamp() {
+    fn test_date_sub_timestamp() {
         let upper_date = generate_date(9999, 12, 31);
         let lower_date = generate_date(0001, 1, 1);
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
@@ -875,6 +875,19 @@ mod tests {
             lower_date.sub_timestamp(upper_ts),
             -IntervalDT::try_from_dhms(3652058, 23, 59, 59, 999999).unwrap()
         );
+    }
+
+    #[test]
+    fn test_date_sub_date() {
+        let upper_date = generate_date(9999, 12, 31);
+        let lower_date = generate_date(0001, 1, 1);
+        let date = generate_date(5000, 6, 15);
+
+        assert_eq!(upper_date.sub_date(lower_date), 3652058);
+
+        assert_eq!(lower_date.sub_date(upper_date), -3652058);
+
+        assert_eq!(upper_date.sub_date(date), 1826046);
     }
 
     #[test]
