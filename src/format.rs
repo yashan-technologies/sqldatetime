@@ -220,11 +220,6 @@ impl NaiveDateTime {
     }
 
     #[inline]
-    pub fn set_fraction(&mut self, frac: u32, p: u8) {
-        self.usec = (frac as f64 * FRACTION_FACTOR[p as usize]) as u32;
-    }
-
-    #[inline]
     pub const fn is_interval(&self) -> bool {
         self.is_interval
     }
@@ -953,8 +948,9 @@ impl Formatter {
                     if is_fraction_set {
                         return Err(Error::ParseError("Duplicate minute".to_string()));
                     }
-                    let (usec, _) = expect_number!(*p as usize);
-                    dt.set_fraction(usec as u32, *p);
+                    let (usec, rem) = parse_fraction(s, *p as usize)?;
+                    s = rem;
+                    dt.usec = usec;
                     is_fraction_set = true;
                 }
                 Field::AmPm(_) => {
@@ -1062,6 +1058,18 @@ fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
     } else {
         Err(Error::ParseError("AM/PM is missing".to_string()))
     }
+}
+
+#[inline]
+fn parse_fraction(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
+    if s.is_empty() {
+        return Err(Error::ParseError("Fraction is missing".to_string()));
+    }
+    let (digits, s) = eat_digits(s, max_len);
+    let int = digits
+        .iter()
+        .fold(0, |int, &i| int * 10 + (i - b'0') as i32);
+    Ok(((int as f64 * FRACTION_FACTOR[digits.len()]) as u32, s))
 }
 
 #[inline]
