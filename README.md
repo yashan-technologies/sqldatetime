@@ -1,6 +1,8 @@
 # sqldatetime
 
 [![Apache-2.0 licensed](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Crate](https://img.shields.io/crates/v/sqldatetime.svg)](https://crates.io/crates/sqldatetime)
+[![API](https://docs.rs/sqldatetime/badge.svg)](https://docs.rs/sqldatetime)
 
 SQL date/time types written in Rust.
 

@@ -1,12 +1,15 @@
 [package]
 name = "sqldatetime"
 version = "0.1.0"
-authors = ["David Li <davidli2010@foxmail.com>"]
+authors = ["David Li <davidli2010@foxmail.com>", "Yukuan Cao <caoyukuan@sics.ac.cn>"]
 edition = "2018"
 readme = "README.md"
 license = "Apache-2.0"
-description = "SQL date/time types written in Rust."
+description = "SQL date/time types written in Rust"
 keywords = ["date", "time", "datetime", "timestamp", "SQL"]
+repository = "https://github.com/cod-technologies/sqldatetime.git"
+homepage = "https://github.com/cod-technologies/sqldatetime"
+documentation = "https://docs.rs/sqldatetime/"
 
 [features]
 serde = ["serde_crate", "once_cell"]
