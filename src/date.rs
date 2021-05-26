@@ -433,11 +433,11 @@ mod tests {
 
         // Default
         {
-            let date = generate_date(0001, 1, 1);
+            let date = generate_date(1, 1, 1);
             let date2 = Date::parse("5", "ss").unwrap();
             assert_eq!(date, date2);
 
-            let date = generate_date(0001, 1, 1);
+            let date = generate_date(1, 1, 1);
             let date2 = Date::parse("", "").unwrap();
             assert_eq!(date, date2)
         }
@@ -565,17 +565,17 @@ mod tests {
         );
         assert_eq!(
             lower_date.add_days(366).unwrap(),
-            Date::try_from_ymd(0002, 1, 2).unwrap()
+            Date::try_from_ymd(2, 1, 2).unwrap()
         );
 
         let date = Date::try_from_ymd(5000, 6, 15).unwrap();
         assert_eq!(
             date.add_days(718).unwrap(),
-            Date::try_from_ymd(5002, 06, 03).unwrap()
+            Date::try_from_ymd(5002, 6, 3).unwrap()
         );
         assert_eq!(
             date.sub_days(718).unwrap(),
-            Date::try_from_ymd(4998, 06, 27).unwrap()
+            Date::try_from_ymd(4998, 6, 27).unwrap()
         );
         assert_eq!(date.sub_days(718).unwrap(), date.add_days(-718).unwrap());
         assert_eq!(date.sub_days(-718).unwrap(), date.add_days(718).unwrap());
@@ -655,9 +655,9 @@ mod tests {
         let interval = IntervalDT::try_from_dhms(12345, 12, 3, 5, 6).unwrap();
         assert!(date.add_interval_dt(interval).is_err());
 
-        let date = generate_date(0001, 1, 1);
+        let date = generate_date(1, 1, 1);
         let interval = IntervalDT::try_from_dhms(5, 4, 3, 2, 1).unwrap();
-        let expect = generate_ts(0001, 1, 6, 4, 3, 2, 1);
+        let expect = generate_ts(1, 1, 6, 4, 3, 2, 1);
         assert_eq!(date.clone().add_interval_dt(interval).unwrap(), expect);
 
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 1).unwrap();
@@ -828,7 +828,7 @@ mod tests {
 
         // Boundary test
         let upper_date = generate_date(9999, 12, 31);
-        let lower_date = generate_date(0001, 1, 1);
+        let lower_date = generate_date(1, 1, 1);
         let interval = IntervalYM::try_from_ym(0, 1).unwrap();
 
         assert!(upper_date.add_interval_ym(interval).is_err());
@@ -849,11 +849,11 @@ mod tests {
                 .unwrap()
                 .sub_time(Time::try_from_hms(12, 34, 56, 999999).unwrap())
                 .unwrap(),
-            generate_ts(9999, 12, 30, 11, 25, 03, 000001)
+            generate_ts(9999, 12, 30, 11, 25, 3, 1)
         );
 
         // Out of range
-        assert!(Date::try_from_ymd(0001, 1, 1)
+        assert!(Date::try_from_ymd(1, 1, 1)
             .unwrap()
             .sub_time(Time::try_from_hms(12, 34, 56, 999999).unwrap())
             .is_err());
@@ -862,9 +862,9 @@ mod tests {
     #[test]
     fn test_date_sub_timestamp() {
         let upper_date = generate_date(9999, 12, 31);
-        let lower_date = generate_date(0001, 1, 1);
+        let lower_date = generate_date(1, 1, 1);
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
-        let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+        let lower_ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
         let ts = generate_ts(5000, 6, 15, 12, 30, 30, 500000);
 
         assert_eq!(
@@ -886,7 +886,7 @@ mod tests {
     #[test]
     fn test_date_sub_date() {
         let upper_date = generate_date(9999, 12, 31);
-        let lower_date = generate_date(0001, 1, 1);
+        let lower_date = generate_date(1, 1, 1);
         let date = generate_date(5000, 6, 15);
 
         assert_eq!(upper_date.sub_date(lower_date), 3652058);
@@ -919,7 +919,7 @@ mod tests {
     #[test]
     fn test_date_extract() {
         test_extract(1960, 12, 31);
-        test_extract(0001, 1, 1);
+        test_extract(1, 1, 1);
         test_extract(1969, 12, 31);
         test_extract(1969, 12, 30);
         test_extract(1970, 1, 1);

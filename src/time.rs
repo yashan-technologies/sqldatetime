@@ -407,14 +407,14 @@ mod tests {
             Time::try_from_hms(12, 30, 2, 3)
                 .unwrap()
                 .add_interval_dt(IntervalDT::try_from_dhms(0, 15, 8, 59, 4).unwrap()),
-            Time::try_from_hms(03, 39, 1, 7).unwrap()
+            Time::try_from_hms(3, 39, 1, 7).unwrap()
         );
 
         assert_eq!(
             Time::try_from_hms(12, 30, 2, 3)
                 .unwrap()
                 .sub_interval_dt(IntervalDT::try_from_dhms(123, 15, 8, 59, 4).unwrap()),
-            Time::try_from_hms(21, 21, 02, 999999).unwrap()
+            Time::try_from_hms(21, 21, 2, 999999).unwrap()
         );
 
         assert_eq!(
@@ -496,7 +496,7 @@ mod tests {
                 .unwrap()
                 .div_f64(-5.1)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(0, 0, 24, 07, 843138).unwrap()
+            -IntervalDT::try_from_dhms(0, 0, 24, 7, 843138).unwrap()
         );
 
         assert_eq!(
@@ -540,6 +540,7 @@ mod tests {
             .is_err());
     }
 
+    #[allow(clippy::float_cmp)]
     fn test_extract(hour: u32, min: u32, sec: u32, usec: u32) {
         let time = Time::try_from_hms(hour, min, sec, usec).unwrap();
 

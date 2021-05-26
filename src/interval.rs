@@ -944,7 +944,7 @@ mod tests {
                 .unwrap()
                 .div_f64(-5.1)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(0, 5, 06, 29, 019609).unwrap()
+            -IntervalDT::try_from_dhms(0, 5, 6, 29, 19609).unwrap()
         );
 
         assert_eq!(
@@ -1118,6 +1118,7 @@ mod tests {
         test_extract_ym(true, 178000000, 0);
     }
 
+    #[allow(clippy::float_cmp)]
     fn test_extract_dt(negate: bool, day: u32, hour: u32, min: u32, sec: u32, usec: u32) {
         let interval = if negate {
             IntervalDT::try_from_dhms(day, hour, min, sec, usec)

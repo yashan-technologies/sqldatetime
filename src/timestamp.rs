@@ -291,11 +291,10 @@ mod tests {
         sec: u32,
         usec: u32,
     ) -> Timestamp {
-        let timestamp = Timestamp::new(
+        Timestamp::new(
             Date::try_from_ymd(year, month, day).unwrap(),
             Time::try_from_hms(hour, min, sec, usec).unwrap(),
-        );
-        timestamp
+        )
     }
 
     fn generate_date(year: i32, month: u32, day: u32) -> Date {
@@ -318,22 +317,22 @@ mod tests {
             assert_eq!(date.extract(), (1970, 1, 1));
             assert_eq!(time.extract(), (0, 0, 0, 0));
 
-            let ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+            let ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
             let (date, time) = ts.extract();
             assert_eq!(date.extract(), (1, 1, 1));
             assert_eq!(time.extract(), (0, 0, 0, 0));
 
-            let ts = generate_ts(0001, 1, 1, 23, 59, 59, 999999);
+            let ts = generate_ts(1, 1, 1, 23, 59, 59, 999999);
             let (date, time) = ts.extract();
             assert_eq!(date.extract(), (1, 1, 1));
             assert_eq!(time.extract(), (23, 59, 59, 999999));
 
-            let ts = generate_ts(0001, 12, 31, 0, 0, 0, 0);
+            let ts = generate_ts(1, 12, 31, 0, 0, 0, 0);
             let (date, time) = ts.extract();
             assert_eq!(date.extract(), (1, 12, 31));
             assert_eq!(time.extract(), (0, 0, 0, 0));
 
-            let ts = generate_ts(0001, 12, 31, 23, 59, 59, 999999);
+            let ts = generate_ts(1, 12, 31, 23, 59, 59, 999999);
             let (date, time) = ts.extract();
             assert_eq!(date.extract(), (1, 12, 31));
             assert_eq!(time.extract(), (23, 59, 59, 999999));
@@ -457,11 +456,11 @@ mod tests {
 
             // Default
             {
-                let ts = generate_ts(0001, 1, 1, 0, 0, 5, 0);
+                let ts = generate_ts(1, 1, 1, 0, 0, 5, 0);
                 let ts2 = Timestamp::parse("5", "ss").unwrap();
                 assert_eq!(ts, ts2);
 
-                let ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+                let ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
                 let ts2 = Timestamp::parse("", "").unwrap();
                 assert_eq!(ts, ts2);
 
@@ -667,12 +666,12 @@ mod tests {
 
     #[test]
     fn test_timestamp_date_time() {
-        let ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
-        assert_eq!(ts.date(), generate_date(0001, 1, 1));
+        let ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
+        assert_eq!(ts.date(), generate_date(1, 1, 1));
         assert_eq!(ts.time(), generate_time(0, 0, 0, 0));
 
-        let ts = generate_ts(0001, 1, 1, 23, 59, 59, 999999);
-        assert_eq!(ts.date(), generate_date(0001, 1, 1));
+        let ts = generate_ts(1, 1, 1, 23, 59, 59, 999999);
+        assert_eq!(ts.date(), generate_date(1, 1, 1));
         assert_eq!(ts.time(), generate_time(23, 59, 59, 999999));
 
         let ts = generate_ts(1969, 12, 30, 0, 0, 0, 0);
@@ -770,9 +769,9 @@ mod tests {
         let interval = IntervalDT::try_from_dhms(12345, 12, 3, 5, 6).unwrap();
         assert!(ts.add_interval_dt(interval).is_err());
 
-        let ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+        let ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
         let interval = IntervalDT::try_from_dhms(5, 4, 3, 2, 1).unwrap();
-        let expect = generate_ts(0001, 1, 6, 4, 3, 2, 1);
+        let expect = generate_ts(1, 1, 6, 4, 3, 2, 1);
         assert_eq!(ts.add_interval_dt(interval).unwrap(), expect);
 
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 1).unwrap();
@@ -912,7 +911,7 @@ mod tests {
 
         // Boundary test
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
-        let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+        let lower_ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
         let interval = IntervalYM::try_from_ym(0, 1).unwrap();
 
         assert!(upper_ts.add_interval_ym(interval).is_err());
@@ -945,7 +944,7 @@ mod tests {
         let time = Time::try_from_hms(0, 0, 0, 1).unwrap();
         assert!(ts.add_time(time).is_err());
 
-        let ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+        let ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
         let time = Time::try_from_hms(5, 4, 3, 2).unwrap();
         assert!(ts.sub_time(time).is_err());
 
@@ -956,7 +955,7 @@ mod tests {
     #[test]
     fn test_timestamp_sub_timestamp() {
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
-        let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+        let lower_ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
         let ts = generate_ts(5000, 6, 15, 12, 30, 30, 500000);
 
         assert_eq!(
@@ -978,8 +977,8 @@ mod tests {
     #[test]
     fn test_timestamp_sub_date() {
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
-        let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
-        let lower_date = Date::try_from_ymd(0001, 1, 1).unwrap();
+        let lower_ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
+        let lower_date = Date::try_from_ymd(1, 1, 1).unwrap();
         let upper_date = Date::try_from_ymd(9999, 12, 31).unwrap();
         let date = Date::try_from_ymd(5000, 6, 15).unwrap();
 
@@ -1002,10 +1001,10 @@ mod tests {
     #[test]
     fn test_timestamp_add_sub_days() {
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
-        let lower_ts = generate_ts(0001, 1, 1, 0, 0, 0, 0);
+        let lower_ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
 
         // Out of range
-        assert!(lower_ts.add_days(213435445784784.123).is_err());
+        assert!(lower_ts.add_days(213435445784784.13).is_err());
         assert!(lower_ts.add_days(f64::NAN).is_err());
         assert!(lower_ts.add_days(f64::INFINITY).is_err());
         assert!(lower_ts.add_days(f64::NEG_INFINITY).is_err());
@@ -1013,7 +1012,7 @@ mod tests {
         assert!(lower_ts.add_days(f64::MIN).is_err());
         assert!(upper_ts.add_days(0.0001).is_err());
 
-        assert!(lower_ts.sub_days(213435445784784.123).is_err());
+        assert!(lower_ts.sub_days(213435445784784.13).is_err());
         assert!(lower_ts.sub_days(f64::NAN).is_err());
         assert!(lower_ts.sub_days(f64::INFINITY).is_err());
         assert!(lower_ts.sub_days(f64::NEG_INFINITY).is_err());
@@ -1024,7 +1023,7 @@ mod tests {
         // Round
         assert_eq!(
             lower_ts.add_days(1.123456789).unwrap(),
-            generate_ts(0001, 1, 2, 2, 57, 46, 666570)
+            generate_ts(1, 1, 2, 2, 57, 46, 666570)
         );
         assert_eq!(
             upper_ts.sub_days(1.123456789).unwrap(),
@@ -1040,7 +1039,7 @@ mod tests {
         );
         assert_eq!(
             lower_ts.add_days(1.0).unwrap(),
-            generate_ts(0001, 1, 2, 0, 0, 0, 0)
+            generate_ts(1, 1, 2, 0, 0, 0, 0)
         );
 
         let ts = generate_ts(5000, 6, 15, 12, 30, 30, 555555);
@@ -1057,6 +1056,7 @@ mod tests {
         assert!(ts == date);
     }
 
+    #[allow(clippy::float_cmp)]
     fn test_extract(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32, usec: u32) {
         let ts = generate_ts(year, month, day, hour, min, sec, usec);
         assert_eq!(year, ts.year().unwrap());
@@ -1073,8 +1073,8 @@ mod tests {
     #[test]
     fn test_timestamp_extract() {
         test_extract(1960, 12, 31, 23, 59, 59, 999999);
-        test_extract(0001, 1, 1, 0, 0, 0, 0);
-        test_extract(0001, 1, 1, 1, 1, 1, 1);
+        test_extract(1, 1, 1, 0, 0, 0, 0);
+        test_extract(1, 1, 1, 1, 1, 1, 1);
         test_extract(1969, 12, 31, 1, 2, 3, 4);
         test_extract(1969, 12, 30, 23, 59, 59, 999999);
         test_extract(1969, 12, 30, 0, 0, 0, 0);
