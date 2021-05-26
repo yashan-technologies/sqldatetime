@@ -128,21 +128,27 @@ impl Date {
         true
     }
 
-    /// Gets the value of `Date`.
+    /// Gets the days from Unix Epoch of this `Date`.
     #[inline(always)]
-    pub(crate) const fn value(self) -> i32 {
+    pub const fn days(self) -> i32 {
         self.0
     }
 
+    /// Creates a `Date` from the given days from Unix Epoch without checking validity.
+    ///
+    /// # Safety
+    /// This function is unsafe because the day value is not checked for validity!
+    /// Before using it, check that the value is correct.
     #[inline(always)]
-    pub(crate) const unsafe fn from_value_unchecked(value: i32) -> Self {
-        Date(value)
+    pub const unsafe fn from_days_unchecked(days: i32) -> Self {
+        Date(days)
     }
 
+    /// Creates a `Date` from the given days from Unix Epoch.
     #[inline]
-    pub(crate) const fn try_from_value(value: i32) -> Result<Self> {
-        if is_valid_date(value) {
-            Ok(unsafe { Date::from_value_unchecked(value) })
+    pub const fn try_from_days(days: i32) -> Result<Self> {
+        if is_valid_date(days) {
+            Ok(unsafe { Date::from_days_unchecked(days) })
         } else {
             Err(Error::OutOfRange)
         }
@@ -192,9 +198,9 @@ impl Date {
     /// `Date` adds days.
     #[inline]
     pub const fn add_days(self, days: i32) -> Result<Date> {
-        let result = self.value().checked_add(days);
+        let result = self.days().checked_add(days);
         match result {
-            Some(d) => Date::try_from_value(d),
+            Some(d) => Date::try_from_days(d),
             None => Err(Error::OutOfRange),
         }
     }
@@ -203,7 +209,7 @@ impl Date {
     pub(crate) fn add_interval_ym_internal(self, interval: IntervalYM) -> Result<Date> {
         let (year, month, day) = self.extract();
 
-        let mut new_month = month as i32 + interval.value();
+        let mut new_month = month as i32 + interval.months();
         let mut new_year = year;
 
         if new_month > MONTHS_PER_YEAR as i32 {
@@ -244,15 +250,15 @@ impl Date {
     /// `Date` subtracts `Date`. Returns the difference in days between two `Date`
     #[inline]
     pub const fn sub_date(self, date: Date) -> i32 {
-        self.value() - date.value()
+        self.days() - date.days()
     }
 
     ///`Date` subtracts days.
     #[inline]
     pub const fn sub_days(self, days: i32) -> Result<Date> {
-        let result = self.value().checked_sub(days);
+        let result = self.days().checked_sub(days);
         match result {
-            Some(d) => Date::try_from_value(d),
+            Some(d) => Date::try_from_days(d),
             None => Err(Error::OutOfRange),
         }
     }
@@ -285,7 +291,7 @@ impl Date {
     #[inline]
     pub fn day_of_week(self) -> WeekDay {
         // Add offset
-        let mut date = self.value() + UNIX_EPOCH_DOW as i32 - 1;
+        let mut date = self.days() + UNIX_EPOCH_DOW as i32 - 1;
         date %= 7;
         if date < 0 {
             date += 7;
@@ -320,7 +326,7 @@ impl PartialEq<Timestamp> for Date {
 impl PartialOrd<Timestamp> for Date {
     #[inline]
     fn partial_cmp(&self, other: &Timestamp) -> Option<Ordering> {
-        Some(self.and_zero_time().value().cmp(&other.value()))
+        Some(self.and_zero_time().usecs().cmp(&other.usecs()))
     }
 }
 
@@ -384,7 +390,7 @@ mod tests {
     #[test]
     fn test_date() {
         let date = Date::try_from_ymd(1970, 1, 1).unwrap();
-        assert_eq!(date.value(), 0);
+        assert_eq!(date.days(), 0);
         assert_eq!(date.extract(), (1970, 1, 1));
 
         let date = Date::try_from_ymd(1, 1, 1).unwrap();

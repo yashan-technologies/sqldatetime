@@ -53,14 +53,14 @@ impl IntervalYM {
         IntervalYM((year * MONTHS_PER_YEAR + month) as i32)
     }
 
-    /// Creates a `IntervalYM` from the given month.
+    /// Creates a `IntervalYM` from the given months without checking validity.
     ///
     /// # Safety
-    /// This function is unsafe because the values are not checked for validity!
-    /// Before using it, check that the values are all correct.
+    /// This function is unsafe because the `months` is not checked for validity!
+    /// Before using it, check that the value is correct.
     #[inline(always)]
-    pub(crate) const unsafe fn from_value_unchecked(month: i32) -> Self {
-        IntervalYM(month)
+    pub const unsafe fn from_months_unchecked(months: i32) -> Self {
+        IntervalYM(months)
     }
 
     /// Creates a `IntervalYM` from the given year and month.
@@ -73,11 +73,11 @@ impl IntervalYM {
         }
     }
 
-    /// Creates a `IntervalYM` from the given month.
+    /// Creates a `IntervalYM` from the given months.
     #[inline]
-    pub(crate) const fn try_from_value(month: i32) -> Result<Self> {
-        if IntervalYM::is_valid_value(month) {
-            Ok(unsafe { IntervalYM::from_value_unchecked(month) })
+    pub const fn try_from_months(months: i32) -> Result<Self> {
+        if IntervalYM::is_valid_months(months) {
+            Ok(unsafe { IntervalYM::from_months_unchecked(months) })
         } else {
             Err(Error::OutOfRange)
         }
@@ -97,15 +97,15 @@ impl IntervalYM {
         true
     }
 
-    /// Check if a value is valid for IntervalYM
+    /// Check if the `months` is valid for IntervalYM
     #[inline]
-    pub(crate) const fn is_valid_value(value: i32) -> bool {
-        value <= INTERVAL_MAX_MONTH && value >= -INTERVAL_MAX_MONTH
+    pub(crate) const fn is_valid_months(months: i32) -> bool {
+        months <= INTERVAL_MAX_MONTH && months >= -INTERVAL_MAX_MONTH
     }
 
-    /// Gets the value of `IntervalYM`.
+    /// Gets the months of `IntervalYM`.
     #[inline(always)]
-    pub(crate) const fn value(self) -> i32 {
+    pub const fn months(self) -> i32 {
         self.0
     }
 
@@ -137,15 +137,15 @@ impl IntervalYM {
 
     #[inline]
     pub(crate) const fn negate(self) -> IntervalYM {
-        unsafe { IntervalYM::from_value_unchecked(-self.value()) }
+        unsafe { IntervalYM::from_months_unchecked(-self.months()) }
     }
 
     /// `IntervalYM` adds `IntervalYM`
     #[inline]
     pub const fn add_interval_ym(self, interval: IntervalYM) -> Result<IntervalYM> {
-        let result = self.value().checked_add(interval.value());
+        let result = self.months().checked_add(interval.months());
         match result {
-            Some(i) => IntervalYM::try_from_value(i),
+            Some(i) => IntervalYM::try_from_months(i),
             None => Err(Error::OutOfRange),
         }
     }
@@ -159,13 +159,13 @@ impl IntervalYM {
     /// `IntervalYM` multiplies `f64`
     #[inline]
     pub fn mul_f64(self, number: f64) -> Result<IntervalYM> {
-        let value = self.value() as f64;
-        let result = value.mul(number);
+        let months = self.months() as f64;
+        let result = months.mul(number);
 
         if !result.is_finite() {
             return Err(Error::OutOfRange);
         }
-        IntervalYM::try_from_value(result as i32)
+        IntervalYM::try_from_months(result as i32)
     }
 
     /// `IntervalYM` divides `f64`
@@ -174,13 +174,13 @@ impl IntervalYM {
         if number == 0.0 {
             return Err(Error::DivideByZero);
         }
-        let value = self.value() as f64;
-        let result = value.div(number);
+        let months = self.months() as f64;
+        let result = months.div(number);
 
         if !result.is_finite() {
             return Err(Error::OutOfRange);
         }
-        IntervalYM::try_from_value(result as i32)
+        IntervalYM::try_from_months(result as i32)
     }
 }
 
@@ -224,12 +224,12 @@ impl Neg for IntervalYM {
 impl DateTime for IntervalYM {
     #[inline(always)]
     fn year(&self) -> Option<i32> {
-        Some(self.value() / MONTHS_PER_YEAR as i32)
+        Some(self.months() / MONTHS_PER_YEAR as i32)
     }
 
     #[inline(always)]
     fn month(&self) -> Option<i32> {
-        Some(self.value() % MONTHS_PER_YEAR as i32)
+        Some(self.months() % MONTHS_PER_YEAR as i32)
     }
 
     #[inline(always)]
@@ -308,15 +308,21 @@ impl IntervalDT {
         }
     }
 
+    /// Creates a `IntervalDT` from the given microseconds without checking the validity.
+    ///
+    /// # Safety
+    /// This function is unsafe because the microsecond value is not checked for validity!
+    /// Before using it, check that the value is all correct.
     #[inline(always)]
-    pub(crate) const unsafe fn from_value_unchecked(useconds: i64) -> Self {
-        IntervalDT(useconds)
+    pub const unsafe fn from_usecs_unchecked(usecs: i64) -> Self {
+        IntervalDT(usecs)
     }
 
+    /// Creates a `IntervalDT` from the given microseconds.
     #[inline]
-    pub(crate) const fn try_from_value(useconds: i64) -> Result<Self> {
-        if IntervalDT::is_valid_useconds(useconds) {
-            Ok(unsafe { IntervalDT::from_value_unchecked(useconds) })
+    pub const fn try_from_usecs(usecs: i64) -> Result<Self> {
+        if IntervalDT::is_valid_usecs(usecs) {
+            Ok(unsafe { IntervalDT::from_usecs_unchecked(usecs) })
         } else {
             Err(Error::OutOfRange)
         }
@@ -351,13 +357,13 @@ impl IntervalDT {
     }
 
     #[inline]
-    pub(crate) const fn is_valid_useconds(useconds: i64) -> bool {
-        useconds <= INTERVAL_MAX_USECONDS && useconds >= -INTERVAL_MAX_USECONDS
+    pub(crate) const fn is_valid_usecs(usecs: i64) -> bool {
+        usecs <= INTERVAL_MAX_USECONDS && usecs >= -INTERVAL_MAX_USECONDS
     }
 
-    /// Gets the value of `IntervalDT`.
+    /// Gets the microseconds of `IntervalDT`.
     #[inline(always)]
-    pub(crate) const fn value(self) -> i64 {
+    pub const fn usecs(self) -> i64 {
         self.0
     }
 
@@ -407,15 +413,15 @@ impl IntervalDT {
 
     #[inline]
     pub(crate) const fn negate(self) -> IntervalDT {
-        unsafe { IntervalDT::from_value_unchecked(-self.value()) }
+        unsafe { IntervalDT::from_usecs_unchecked(-self.usecs()) }
     }
 
     /// `IntervalDT` adds `IntervalDT`
     #[inline]
     pub const fn add_interval_dt(self, interval: IntervalDT) -> Result<IntervalDT> {
-        let result = self.value().checked_add(interval.value());
+        let result = self.usecs().checked_add(interval.usecs());
         match result {
-            Some(i) => IntervalDT::try_from_value(i),
+            Some(i) => IntervalDT::try_from_usecs(i),
             None => Err(Error::OutOfRange),
         }
     }
@@ -429,12 +435,12 @@ impl IntervalDT {
     /// `IntervalDT` multiplies `f64`
     #[inline]
     pub fn mul_f64(self, number: f64) -> Result<IntervalDT> {
-        let value = self.value() as f64;
-        let result = value.mul(number).round();
+        let usecs = self.usecs() as f64;
+        let result = usecs.mul(number).round();
         if !result.is_finite() {
             return Err(Error::OutOfRange);
         }
-        IntervalDT::try_from_value(result as i64)
+        IntervalDT::try_from_usecs(result as i64)
     }
 
     /// `IntervalDT` divides `f64`
@@ -443,19 +449,19 @@ impl IntervalDT {
         if number == 0.0 {
             return Err(Error::DivideByZero);
         }
-        let value = self.value() as f64;
-        let result = value.div(number).round();
+        let usecs = self.usecs() as f64;
+        let result = usecs.div(number).round();
 
         if !result.is_finite() {
             return Err(Error::OutOfRange);
         }
-        IntervalDT::try_from_value(result as i64)
+        IntervalDT::try_from_usecs(result as i64)
     }
 
     /// `IntervalDT` subtracts `Time`
     #[inline]
     pub const fn sub_time(self, time: Time) -> Result<IntervalDT> {
-        IntervalDT::try_from_value(self.value() - time.value())
+        IntervalDT::try_from_usecs(self.usecs() - time.usecs())
     }
 }
 
@@ -493,21 +499,21 @@ impl TryFrom<NaiveDateTime> for IntervalDT {
 impl From<Time> for IntervalDT {
     #[inline]
     fn from(time: Time) -> Self {
-        unsafe { IntervalDT::from_value_unchecked(time.value()) }
+        unsafe { IntervalDT::from_usecs_unchecked(time.usecs()) }
     }
 }
 
 impl PartialEq<Time> for IntervalDT {
     #[inline]
     fn eq(&self, other: &Time) -> bool {
-        self.value() == other.value()
+        self.usecs() == other.usecs()
     }
 }
 
 impl PartialOrd<Time> for IntervalDT {
     #[inline]
     fn partial_cmp(&self, other: &Time) -> Option<Ordering> {
-        Some(self.value().cmp(&other.value()))
+        Some(self.usecs().cmp(&other.usecs()))
     }
 }
 
@@ -533,24 +539,24 @@ impl DateTime for IntervalDT {
 
     #[inline(always)]
     fn day(&self) -> Option<i32> {
-        Some((self.value() / USECONDS_PER_DAY) as i32)
+        Some((self.usecs() / USECONDS_PER_DAY) as i32)
     }
 
     #[inline(always)]
     fn hour(&self) -> Option<i32> {
-        let remain_time = self.value() % USECONDS_PER_DAY;
+        let remain_time = self.usecs() % USECONDS_PER_DAY;
         Some((remain_time / USECONDS_PER_HOUR) as i32)
     }
 
     #[inline(always)]
     fn minute(&self) -> Option<i32> {
-        let remain_time = self.value() % USECONDS_PER_HOUR;
+        let remain_time = self.usecs() % USECONDS_PER_HOUR;
         Some((remain_time / USECONDS_PER_MINUTE) as i32)
     }
 
     #[inline]
     fn second(&self) -> Option<f64> {
-        let remain_time = self.value() % USECONDS_PER_MINUTE;
+        let remain_time = self.usecs() % USECONDS_PER_MINUTE;
         Some(remain_time as f64 / USECONDS_PER_SECOND as f64)
     }
 }
@@ -572,7 +578,7 @@ mod tests {
         );
 
         let interval = IntervalYM::try_from_ym(0, 0).unwrap();
-        assert_eq!(interval.value(), 0);
+        assert_eq!(interval.months(), 0);
         assert_eq!(interval.extract(), (Positive, 0, 0));
 
         let interval = IntervalYM::try_from_ym(178000000, 0).unwrap();
@@ -597,10 +603,10 @@ mod tests {
         let interval = -IntervalYM::try_from_ym(177999999, 11).unwrap();
         assert_eq!(interval.extract(), (Negative, 177999999, 11));
 
-        let interval = IntervalYM::try_from_value(0).unwrap();
+        let interval = IntervalYM::try_from_months(0).unwrap();
         assert_eq!(interval.extract(), (Positive, 0, 0));
 
-        let interval = IntervalYM::try_from_value(-11).unwrap();
+        let interval = IntervalYM::try_from_months(-11).unwrap();
         assert_eq!(interval.extract(), (Negative, 0, 11));
         let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
         assert_eq!(fmt, "-0000-11");
@@ -610,7 +616,7 @@ mod tests {
         let interval2 = IntervalYM::parse("-0000 - 11", "yyyy - mm").unwrap();
         assert_eq!(interval, interval2);
 
-        let interval = IntervalYM::try_from_value(11).unwrap();
+        let interval = IntervalYM::try_from_months(11).unwrap();
         let interval2 = IntervalYM::parse("0000-11", "yyyy-mm").unwrap();
         assert_eq!(interval, interval2);
 
@@ -660,7 +666,7 @@ mod tests {
         );
 
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap();
-        assert_eq!(interval.value(), 0);
+        assert_eq!(interval.usecs(), 0);
         assert_eq!(interval.extract(), (Positive, 0, 0, 0, 0, 0));
         let fmt = format!("{}", interval.format("DD HH24:MI:SS").unwrap());
         assert_eq!(fmt, "00 00:00:00");
@@ -688,15 +694,15 @@ mod tests {
         let fmt = format!("{}", interval.format("DD HH24:MI:SS.FF6").unwrap());
         assert_eq!(fmt, "-99999999 23:59:59.999999");
 
-        let interval = IntervalDT::try_from_value(-11).unwrap();
+        let interval = IntervalDT::try_from_usecs(-11).unwrap();
         let interval2 = IntervalDT::parse("-0 00:00:00.000011", "DD HH24:MI:SS.FF6").unwrap();
         assert_eq!(interval, interval2);
 
-        let interval = IntervalDT::try_from_value(11).unwrap();
+        let interval = IntervalDT::try_from_usecs(11).unwrap();
         let interval2 = IntervalDT::parse("0 00:00:00.000011", "DD HH24:MI:SS.FF6").unwrap();
         assert_eq!(interval, interval2);
 
-        let interval = IntervalDT::try_from_value(-11).unwrap();
+        let interval = IntervalDT::try_from_usecs(-11).unwrap();
         let interval2 = IntervalDT::parse("-0 00:00:00.000011", "DD HH24:MI:SS.FF").unwrap();
         assert_eq!(interval, interval2);
 
@@ -718,11 +724,11 @@ mod tests {
     fn test_interval_negate() {
         assert_eq!(
             -IntervalDT::try_from_dhms(1, 2, 3, 4, 5).unwrap(),
-            IntervalDT::try_from_value(-93784000005).unwrap()
+            IntervalDT::try_from_usecs(-93784000005).unwrap()
         );
         assert_eq!(
             IntervalDT::try_from_dhms(1, 2, 3, 4, 5).unwrap().negate(),
-            IntervalDT::try_from_value(-93784000005).unwrap()
+            IntervalDT::try_from_usecs(-93784000005).unwrap()
         );
         assert_eq!(
             -IntervalDT::try_from_dhms(0, 0, 0, 0, 0).unwrap(),
@@ -734,7 +740,7 @@ mod tests {
         );
         assert_eq!(
             -IntervalDT::try_from_dhms(1, 2, 3, 4, 5).unwrap().negate(),
-            IntervalDT::try_from_value(93784000005).unwrap()
+            IntervalDT::try_from_usecs(93784000005).unwrap()
         );
         assert_eq!(
             IntervalDT::try_from_dhms(1, 2, 3, 4, 5)
@@ -745,13 +751,13 @@ mod tests {
         );
         assert_eq!(
             -IntervalDT::try_from_dhms(INTERVAL_MAX_DAY as u32, 0, 0, 0, 0).unwrap(),
-            IntervalDT::try_from_value(-8640000000000000000).unwrap()
+            IntervalDT::try_from_usecs(-8640000000000000000).unwrap()
         );
         assert_eq!(
             IntervalDT::try_from_dhms(INTERVAL_MAX_DAY as u32, 0, 0, 0, 0)
                 .unwrap()
                 .negate(),
-            IntervalDT::try_from_value(-8640000000000000000).unwrap()
+            IntervalDT::try_from_usecs(-8640000000000000000).unwrap()
         );
         assert_eq!(
             -IntervalDT::try_from_dhms(INTERVAL_MAX_DAY as u32, 0, 0, 0, 0).unwrap(),
@@ -762,11 +768,11 @@ mod tests {
 
         assert_eq!(
             -IntervalYM::try_from_ym(1, 2).unwrap(),
-            IntervalYM::try_from_value(-14).unwrap()
+            IntervalYM::try_from_months(-14).unwrap()
         );
         assert_eq!(
             IntervalYM::try_from_ym(1, 2).unwrap().negate(),
-            IntervalYM::try_from_value(-14).unwrap()
+            IntervalYM::try_from_months(-14).unwrap()
         );
         assert_eq!(
             -IntervalYM::try_from_ym(0, 0).unwrap(),
@@ -786,26 +792,26 @@ mod tests {
         );
         assert_eq!(
             -IntervalYM::try_from_ym(INTERVAL_MAX_YEAR as u32, 0).unwrap(),
-            IntervalYM::try_from_value(-2136000000).unwrap()
+            IntervalYM::try_from_months(-2136000000).unwrap()
         );
         assert_eq!(
             IntervalYM::try_from_ym(INTERVAL_MAX_YEAR as u32, 0)
                 .unwrap()
                 .negate(),
-            IntervalYM::try_from_value(-2136000000).unwrap()
+            IntervalYM::try_from_months(-2136000000).unwrap()
         );
         assert_eq!(
             -IntervalYM::try_from_ym(INTERVAL_MAX_YEAR as u32, 0)
                 .unwrap()
                 .negate(),
-            IntervalYM::try_from_value(2136000000).unwrap()
+            IntervalYM::try_from_months(2136000000).unwrap()
         );
         assert_eq!(
             IntervalYM::try_from_ym(INTERVAL_MAX_YEAR as u32, 0)
                 .unwrap()
                 .negate()
                 .negate(),
-            IntervalYM::try_from_value(2136000000).unwrap()
+            IntervalYM::try_from_months(2136000000).unwrap()
         );
     }
 

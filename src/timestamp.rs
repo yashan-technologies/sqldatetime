@@ -25,8 +25,8 @@ impl Timestamp {
     /// Creates a new `Timestamp` from a date and a time.
     #[inline]
     pub const fn new(date: Date, time: Time) -> Self {
-        let value = date.value() as i64 * USECONDS_PER_DAY + time.value();
-        Timestamp(value)
+        let usecs = date.days() as i64 * USECONDS_PER_DAY + time.usecs();
+        Timestamp(usecs)
     }
 
     /// Extracts `(Date, Time)` from the timestamp.
@@ -45,8 +45,8 @@ impl Timestamp {
 
         unsafe {
             (
-                Date::from_value_unchecked(date as i32),
-                Time::from_value_unchecked(time),
+                Date::from_days_unchecked(date as i32),
+                Time::from_usecs_unchecked(time),
             )
         }
     }
@@ -59,7 +59,7 @@ impl Timestamp {
         } else {
             self.0 / USECONDS_PER_DAY
         };
-        unsafe { Date::from_value_unchecked(date as i32) }
+        unsafe { Date::from_days_unchecked(date as i32) }
     }
 
     #[allow(dead_code)]
@@ -67,21 +67,26 @@ impl Timestamp {
     pub(crate) fn time(self) -> Time {
         let temp_time = self.0 % USECONDS_PER_DAY;
         if temp_time.is_negative() {
-            unsafe { Time::from_value_unchecked(temp_time as i64 + USECONDS_PER_DAY) }
+            unsafe { Time::from_usecs_unchecked(temp_time as i64 + USECONDS_PER_DAY) }
         } else {
-            unsafe { Time::from_value_unchecked(temp_time as i64) }
+            unsafe { Time::from_usecs_unchecked(temp_time as i64) }
         }
     }
 
-    /// Gets the value of `Timestamp`.
+    /// Gets the microseconds from Unix Epoch of `Timestamp`.
     #[inline(always)]
-    pub(crate) const fn value(self) -> i64 {
+    pub const fn usecs(self) -> i64 {
         self.0
     }
 
+    /// Creates a `Timestamp` from the given microseconds from Unix Epoch without checking validity.
+    ///
+    /// # Safety
+    /// This function is unsafe because the microsecond value is not checked for validity!
+    /// Before using it, check that the value is correct.
     #[inline(always)]
-    pub(crate) const unsafe fn from_value_unchecked(value: i64) -> Self {
-        Timestamp(value)
+    pub const unsafe fn from_usecs_unchecked(usecs: i64) -> Self {
+        Timestamp(usecs)
     }
 
     /// Formats `Timestamp` by given format string.
@@ -98,10 +103,11 @@ impl Timestamp {
         fmt.parse(input)
     }
 
+    /// Creates a `Timestamp` from the given microseconds from Unix Epoch
     #[inline]
-    pub(crate) const fn try_from_value(value: i64) -> Result<Self> {
-        if is_valid_timestamp(value) {
-            Ok(unsafe { Timestamp::from_value_unchecked(value) })
+    pub const fn try_from_usecs(usecs: i64) -> Result<Self> {
+        if is_valid_timestamp(usecs) {
+            Ok(unsafe { Timestamp::from_usecs_unchecked(usecs) })
         } else {
             Err(Error::OutOfRange)
         }
@@ -110,9 +116,9 @@ impl Timestamp {
     /// `Timestamp` adds `IntervalDT`
     #[inline]
     pub const fn add_interval_dt(self, interval: IntervalDT) -> Result<Timestamp> {
-        let result = self.value().checked_add(interval.value());
+        let result = self.usecs().checked_add(interval.usecs());
         match result {
-            Some(ts) => Timestamp::try_from_value(ts),
+            Some(ts) => Timestamp::try_from_usecs(ts),
             None => Err(Error::OutOfRange),
         }
     }
@@ -131,7 +137,7 @@ impl Timestamp {
     /// `Timestamp` add `Time`
     #[inline]
     pub const fn add_time(self, time: Time) -> Result<Timestamp> {
-        Timestamp::try_from_value(self.value() + time.value())
+        Timestamp::try_from_usecs(self.usecs() + time.usecs())
     }
 
     /// `Timestamp` add days
@@ -141,9 +147,9 @@ impl Timestamp {
         if !microseconds.is_finite() {
             return Err(Error::OutOfRange);
         }
-        let result = self.value().checked_add(microseconds as i64);
+        let result = self.usecs().checked_add(microseconds as i64);
         match result {
-            Some(d) => Timestamp::try_from_value(d),
+            Some(d) => Timestamp::try_from_usecs(d),
             None => Err(Error::OutOfRange),
         }
     }
@@ -158,14 +164,14 @@ impl Timestamp {
     /// `Timestamp` subtracts `Time`
     #[inline]
     pub const fn sub_time(self, time: Time) -> Result<Timestamp> {
-        Timestamp::try_from_value(self.value() - time.value())
+        Timestamp::try_from_usecs(self.usecs() - time.usecs())
     }
 
     /// `Timestamp` subtracts `Timestamp`
     #[inline]
     pub const fn sub_timestamp(self, timestamp: Timestamp) -> IntervalDT {
-        let microseconds = self.value() - timestamp.value();
-        unsafe { IntervalDT::from_value_unchecked(microseconds) }
+        let microseconds = self.usecs() - timestamp.usecs();
+        unsafe { IntervalDT::from_usecs_unchecked(microseconds) }
     }
 
     /// `Timestamp` subtracts `IntervalDT`
@@ -229,7 +235,7 @@ impl PartialEq<Date> for Timestamp {
 impl PartialOrd<Date> for Timestamp {
     #[inline]
     fn partial_cmp(&self, other: &Date) -> Option<Ordering> {
-        Some(self.value().cmp(&other.and_zero_time().value()))
+        Some(self.usecs().cmp(&other.and_zero_time().usecs()))
     }
 }
 
@@ -306,7 +312,7 @@ mod tests {
             let date = Date::try_from_ymd(1970, 1, 1).unwrap();
             let time = Time::try_from_hms(0, 0, 0, 0).unwrap();
             let ts = Timestamp::new(date, time);
-            assert_eq!(ts.value(), 0);
+            assert_eq!(ts.usecs(), 0);
 
             let (date, time) = ts.extract();
             assert_eq!(date.extract(), (1970, 1, 1));
