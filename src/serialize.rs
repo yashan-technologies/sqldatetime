@@ -363,8 +363,8 @@ mod tests {
 
     #[test]
     fn test_serde_timestamp() {
-        test_timestamp(0001, 1, 1, 0, 0, 0, 0);
-        test_timestamp(0001, 1, 1, 1, 1, 1, 1);
+        test_timestamp(1, 1, 1, 0, 0, 0, 0);
+        test_timestamp(1, 1, 1, 1, 1, 1, 1);
         test_timestamp(1969, 12, 30, 23, 30, 30, 30);
         test_timestamp(1969, 12, 31, 23, 59, 59, 999999);
         test_timestamp(1970, 1, 1, 0, 0, 0, 0);
@@ -416,12 +416,12 @@ mod tests {
 
     #[test]
     fn test_serde_interval_ym() {
-        test_interval_ym(false, 0000, 0);
-        test_interval_ym(false, 0000, 1);
-        test_interval_ym(false, 0001, 1);
+        test_interval_ym(false, 0, 0);
+        test_interval_ym(false, 0, 1);
+        test_interval_ym(false, 1, 1);
         test_interval_ym(false, 178000000, 0);
         test_interval_ym(true, 0000, 1);
-        test_interval_ym(true, 0001, 1);
+        test_interval_ym(true, 1, 1);
         test_interval_ym(true, 178000000, 0);
     }
 
