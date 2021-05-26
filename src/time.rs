@@ -69,22 +69,28 @@ impl Time {
         true
     }
 
-    /// Gets the value of `Time`.
+    /// Gets the microseconds of `Time`.
     #[inline(always)]
-    pub(crate) const fn value(self) -> i64 {
+    pub const fn usecs(self) -> i64 {
         self.0
     }
 
+    /// Creates a `Time` from the given microseconds without checking validity.
+    ///
+    /// # Safety
+    /// This function is unsafe because the microsecond value is not checked for validity!
+    /// Before using it, check that the value is correct.
     #[inline(always)]
-    pub(crate) const unsafe fn from_value_unchecked(value: i64) -> Self {
-        Time(value)
+    pub const unsafe fn from_usecs_unchecked(usecs: i64) -> Self {
+        Time(usecs)
     }
 
+    /// Creates a `Time` from the given microseconds
     #[allow(dead_code)]
     #[inline]
-    pub(crate) const fn try_from_value(value: i64) -> Result<Self> {
-        if is_valid_time(value) {
-            Ok(unsafe { Time::from_value_unchecked(value) })
+    pub const fn try_from_usecs(usecs: i64) -> Result<Self> {
+        if is_valid_time(usecs) {
+            Ok(unsafe { Time::from_usecs_unchecked(usecs) })
         } else {
             Err(Error::OutOfRange)
         }
@@ -126,17 +132,17 @@ impl Time {
     /// `Time` subtracts `Time`
     #[inline]
     pub const fn sub_time(self, time: Time) -> IntervalDT {
-        unsafe { IntervalDT::from_value_unchecked(self.value() - time.value()) }
+        unsafe { IntervalDT::from_usecs_unchecked(self.usecs() - time.usecs()) }
     }
 
     /// `Time` adds `IntervalDT`
     #[inline]
     pub const fn add_interval_dt(self, interval: IntervalDT) -> Time {
-        let temp_result = self.value() + interval.value() % USECONDS_PER_DAY;
+        let temp_result = self.usecs() + interval.usecs() % USECONDS_PER_DAY;
         if temp_result >= 0 {
-            unsafe { Time::from_value_unchecked(temp_result % USECONDS_PER_DAY) }
+            unsafe { Time::from_usecs_unchecked(temp_result % USECONDS_PER_DAY) }
         } else {
-            unsafe { Time::from_value_unchecked(temp_result + USECONDS_PER_DAY) }
+            unsafe { Time::from_usecs_unchecked(temp_result + USECONDS_PER_DAY) }
         }
     }
 
@@ -149,13 +155,13 @@ impl Time {
     /// `Time` multiplies `f64`
     #[inline]
     pub fn mul_f64(self, number: f64) -> Result<IntervalDT> {
-        unsafe { IntervalDT::from_value_unchecked(self.value()).mul_f64(number) }
+        unsafe { IntervalDT::from_usecs_unchecked(self.usecs()).mul_f64(number) }
     }
 
     /// 'Time' divides `f64`
     #[inline]
     pub fn div_f64(self, number: f64) -> Result<IntervalDT> {
-        unsafe { IntervalDT::from_value_unchecked(self.value()).div_f64(number) }
+        unsafe { IntervalDT::from_usecs_unchecked(self.usecs()).div_f64(number) }
     }
 }
 
@@ -177,14 +183,14 @@ impl From<Time> for NaiveDateTime {
 impl PartialEq<IntervalDT> for Time {
     #[inline]
     fn eq(&self, other: &IntervalDT) -> bool {
-        self.value() == other.value()
+        self.usecs() == other.usecs()
     }
 }
 
 impl PartialOrd<IntervalDT> for Time {
     #[inline]
     fn partial_cmp(&self, other: &IntervalDT) -> Option<Ordering> {
-        Some(self.value().cmp(&other.value()))
+        Some(self.usecs().cmp(&other.usecs()))
     }
 }
 
@@ -224,18 +230,18 @@ impl DateTime for Time {
 
     #[inline(always)]
     fn hour(&self) -> Option<i32> {
-        Some((self.value() / USECONDS_PER_HOUR) as i32)
+        Some((self.usecs() / USECONDS_PER_HOUR) as i32)
     }
 
     #[inline(always)]
     fn minute(&self) -> Option<i32> {
-        let remain_time = self.value() % USECONDS_PER_HOUR;
+        let remain_time = self.usecs() % USECONDS_PER_HOUR;
         Some((remain_time / USECONDS_PER_MINUTE) as i32)
     }
 
     #[inline(always)]
     fn second(&self) -> Option<f64> {
-        let remain_time = self.value() % USECONDS_PER_MINUTE;
+        let remain_time = self.usecs() % USECONDS_PER_MINUTE;
         Some(remain_time as f64 / USECONDS_PER_SECOND as f64)
     }
 }
@@ -250,11 +256,11 @@ mod tests {
         assert_eq!(Time::MAX, Time::try_from_hms(23, 59, 59, 999999).unwrap());
 
         let time = Time::try_from_hms(0, 0, 0, 0).unwrap();
-        assert_eq!(time.value(), 0);
+        assert_eq!(time.usecs(), 0);
         assert_eq!(time.extract(), (0, 0, 0, 0));
 
         let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
-        assert_eq!(time.value(), 86399999999);
+        assert_eq!(time.usecs(), 86399999999);
         assert_eq!(time.extract(), (23, 59, 59, 999999));
         let time2 = Time::parse("23:59:59.999999", "HH:MI:SS.FF").unwrap();
         assert_eq!(time2, time);

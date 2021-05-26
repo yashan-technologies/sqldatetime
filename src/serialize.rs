@@ -29,7 +29,7 @@ impl Serialize for Date {
                 .map_err(ser::Error::custom)?;
             serializer.serialize_str(&buf)
         } else {
-            serializer.serialize_i32(self.value())
+            serializer.serialize_i32(self.days())
         }
     }
 }
@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for Date {
             where
                 E: de::Error,
             {
-                Ok(unsafe { Date::from_value_unchecked(v) })
+                Ok(unsafe { Date::from_days_unchecked(v) })
             }
 
             #[inline]
@@ -88,7 +88,7 @@ impl Serialize for Timestamp {
                 .map_err(ser::Error::custom)?;
             serializer.serialize_str(&buf)
         } else {
-            serializer.serialize_i64(self.value())
+            serializer.serialize_i64(self.usecs())
         }
     }
 }
@@ -114,7 +114,7 @@ impl<'de> Deserialize<'de> for Timestamp {
             where
                 E: de::Error,
             {
-                Ok(unsafe { Timestamp::from_value_unchecked(v) })
+                Ok(unsafe { Timestamp::from_usecs_unchecked(v) })
             }
 
             #[inline]
@@ -147,7 +147,7 @@ impl Serialize for Time {
                 .map_err(ser::Error::custom)?;
             serializer.serialize_str(&buf)
         } else {
-            serializer.serialize_i64(self.value())
+            serializer.serialize_i64(self.usecs())
         }
     }
 }
@@ -173,7 +173,7 @@ impl<'de> Deserialize<'de> for Time {
             where
                 E: de::Error,
             {
-                Ok(unsafe { Time::from_value_unchecked(v) })
+                Ok(unsafe { Time::from_usecs_unchecked(v) })
             }
 
             #[inline]
@@ -206,7 +206,7 @@ impl Serialize for IntervalYM {
                 .map_err(ser::Error::custom)?;
             serializer.serialize_str(&buf)
         } else {
-            serializer.serialize_i32(self.value())
+            serializer.serialize_i32(self.months())
         }
     }
 }
@@ -232,7 +232,7 @@ impl<'de> Deserialize<'de> for IntervalYM {
             where
                 E: de::Error,
             {
-                Ok(unsafe { IntervalYM::from_value_unchecked(v) })
+                Ok(unsafe { IntervalYM::from_months_unchecked(v) })
             }
 
             #[inline]
@@ -265,7 +265,7 @@ impl Serialize for IntervalDT {
                 .map_err(ser::Error::custom)?;
             serializer.serialize_str(&buf)
         } else {
-            serializer.serialize_i64(self.value())
+            serializer.serialize_i64(self.usecs())
         }
     }
 }
@@ -291,7 +291,7 @@ impl<'de> Deserialize<'de> for IntervalDT {
             where
                 E: de::Error,
             {
-                Ok(unsafe { IntervalDT::from_value_unchecked(v) })
+                Ok(unsafe { IntervalDT::from_usecs_unchecked(v) })
             }
 
             #[inline]
