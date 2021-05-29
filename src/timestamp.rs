@@ -51,7 +51,6 @@ impl Timestamp {
         }
     }
 
-    #[allow(dead_code)]
     #[inline]
     pub(crate) fn date(self) -> Date {
         let date = if self.0.is_negative() && self.0 % USECONDS_PER_DAY != 0 {
@@ -62,7 +61,6 @@ impl Timestamp {
         unsafe { Date::from_days_unchecked(date as i32) }
     }
 
-    #[allow(dead_code)]
     #[inline]
     pub(crate) fn time(self) -> Time {
         let temp_time = self.0 % USECONDS_PER_DAY;

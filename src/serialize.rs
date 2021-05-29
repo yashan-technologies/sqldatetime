@@ -16,6 +16,10 @@ static INTERVAL_YM_FORMATTER: Lazy<Formatter> =
 static INTERVAL_DT_FORMATTER: Lazy<Formatter> =
     Lazy::new(|| Formatter::try_new("DD HH24:MI:SS.FF6").unwrap());
 
+#[cfg(feature = "oracle")]
+static ORACLE_DATE_FORMATTER: Lazy<Formatter> =
+    Lazy::new(|| Formatter::try_new("YYYY-MM-DD HH24:MI:SS").unwrap());
+
 impl Serialize for Date {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -311,6 +315,67 @@ impl<'de> Deserialize<'de> for IntervalDT {
     }
 }
 
+#[cfg(feature = "oracle")]
+impl Serialize for crate::oracle::Date {
+    #[inline]
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        if serializer.is_human_readable() {
+            let mut buf = String::new();
+            ORACLE_DATE_FORMATTER
+                .format(*self, &mut buf)
+                .map_err(ser::Error::custom)?;
+            serializer.serialize_str(&buf)
+        } else {
+            serializer.serialize_i64(self.usecs())
+        }
+    }
+}
+
+#[cfg(feature = "oracle")]
+impl<'de> Deserialize<'de> for crate::oracle::Date {
+    #[inline]
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct DateVisitor;
+
+        impl<'de> Visitor<'de> for DateVisitor {
+            type Value = crate::oracle::Date;
+
+            #[inline]
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                write!(formatter, "a Oracle Date")
+            }
+
+            #[inline]
+            fn visit_i64<E>(self, v: i64) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(unsafe { crate::oracle::Date::from_usecs_unchecked(v) })
+            }
+
+            #[inline]
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                ORACLE_DATE_FORMATTER.parse(v).map_err(de::Error::custom)
+            }
+        }
+
+        if deserializer.is_human_readable() {
+            deserializer.deserialize_str(DateVisitor)
+        } else {
+            deserializer.deserialize_i64(DateVisitor)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -455,5 +520,35 @@ mod tests {
         test_interval_dt(true, 0, 0, 0, 0, 1);
         test_interval_dt(true, 1, 1, 1, 1, 1);
         test_interval_dt(true, 100000000, 0, 0, 0, 0);
+    }
+
+    #[cfg(feature = "oracle")]
+    fn test_oracle_date(year: i32, mon: u32, day: u32, hour: u32, min: u32, sec: u32) {
+        let date = Date::try_from_ymd(year, mon, day).unwrap();
+        let time = Time::try_from_hms(hour, min, sec, 0).unwrap();
+        let date = crate::oracle::Date::new(date, time);
+        let date_json = serde_json::to_string(&date).unwrap();
+        assert_eq!(
+            date_json,
+            format!("\"{}\"", date.format("YYYY-MM-DD HH24:MI:SS").unwrap())
+        );
+        let json_decode: crate::oracle::Date = serde_json::from_str(&date_json).unwrap();
+        assert_eq!(json_decode, date);
+
+        let bin = bincode::serialize(&date).unwrap();
+        let bin_decode: crate::oracle::Date = bincode::deserialize(&bin).unwrap();
+        assert_eq!(bin_decode, date);
+    }
+
+    #[cfg(feature = "oracle")]
+    #[test]
+    fn test_serde_oracle_date() {
+        test_oracle_date(1, 1, 1, 0, 0, 0);
+        test_oracle_date(1, 1, 1, 1, 1, 1);
+        test_oracle_date(1969, 12, 30, 23, 30, 30);
+        test_oracle_date(1969, 12, 31, 23, 59, 59);
+        test_oracle_date(1970, 1, 1, 0, 0, 0);
+        test_oracle_date(1970, 10, 1, 23, 30, 0);
+        test_oracle_date(9999, 12, 31, 23, 59, 59);
     }
 }
