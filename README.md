@@ -6,6 +6,11 @@
 
 SQL date/time types written in Rust.
 
+## Feature Flags
+
+- `serde`: Enable `serde`-based serialization and deserialization. Not enabled by default.
+- `oracle`: Enable Oracle oriented datetime type `OracleDate`. Not enabled by default.
+
 ## License
 
 This project is licensed under the Apache-2.0 license ([LICENSE](LICENSE) or <http://www.apache.org/licenses/LICENSE-2.0>).

@@ -1,4 +1,11 @@
 //! This crate provides SQL date/time types.
+//!
+//! # Feature Flags
+//!
+//!- `serde`: Enable `serde`-based serialization and deserialization. Not enabled by default.
+//!- `oracle`: Enable Oracle oriented datetime type: `OracleDate`. Not enabled by default.
+
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod common;
 mod date;
@@ -20,6 +27,7 @@ pub use crate::interval::{IntervalDT, IntervalYM};
 pub use crate::time::Time;
 pub use crate::timestamp::Timestamp;
 
+#[cfg_attr(docsrs, doc(cfg(feature = "oracle")))]
 #[cfg(feature = "oracle")]
 pub use crate::oracle::Date as OracleDate;
 
