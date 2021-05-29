@@ -20,6 +20,7 @@ static INTERVAL_DT_FORMATTER: Lazy<Formatter> =
 static ORACLE_DATE_FORMATTER: Lazy<Formatter> =
     Lazy::new(|| Formatter::try_new("YYYY-MM-DD HH24:MI:SS").unwrap());
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Date {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -38,6 +39,7 @@ impl Serialize for Date {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for Date {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -79,6 +81,7 @@ impl<'de> Deserialize<'de> for Date {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Timestamp {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -97,6 +100,7 @@ impl Serialize for Timestamp {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for Timestamp {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -138,6 +142,7 @@ impl<'de> Deserialize<'de> for Timestamp {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Time {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -156,6 +161,7 @@ impl Serialize for Time {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for Time {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -197,6 +203,7 @@ impl<'de> Deserialize<'de> for Time {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for IntervalYM {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -215,6 +222,7 @@ impl Serialize for IntervalYM {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for IntervalYM {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -256,6 +264,7 @@ impl<'de> Deserialize<'de> for IntervalYM {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for IntervalDT {
     #[inline]
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -274,6 +283,7 @@ impl Serialize for IntervalDT {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl<'de> Deserialize<'de> for IntervalDT {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -315,6 +325,7 @@ impl<'de> Deserialize<'de> for IntervalDT {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(all(feature = "oracle", feature = "serde"))))]
 #[cfg(feature = "oracle")]
 impl Serialize for crate::oracle::Date {
     #[inline]
@@ -334,6 +345,7 @@ impl Serialize for crate::oracle::Date {
     }
 }
 
+#[cfg_attr(docsrs, doc(cfg(all(feature = "oracle", feature = "serde"))))]
 #[cfg(feature = "oracle")]
 impl<'de> Deserialize<'de> for crate::oracle::Date {
     #[inline]
