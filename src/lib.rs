@@ -8,6 +8,8 @@ mod interval;
 mod time;
 mod timestamp;
 
+#[cfg(feature = "oracle")]
+mod oracle;
 #[cfg(feature = "serde")]
 mod serialize;
 
@@ -17,6 +19,9 @@ pub use crate::format::Formatter;
 pub use crate::interval::{IntervalDT, IntervalYM};
 pub use crate::time::Time;
 pub use crate::timestamp::Timestamp;
+
+#[cfg(feature = "oracle")]
+pub use crate::oracle::Date as OracleDate;
 
 /// General trait for all date time types.
 pub trait DateTime {

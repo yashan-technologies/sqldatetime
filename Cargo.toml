@@ -13,6 +13,7 @@ documentation = "https://docs.rs/sqldatetime/"
 
 [features]
 serde = ["serde_crate", "once_cell"]
+oracle = []
 
 [dependencies]
 thiserror = "1.0.24"
