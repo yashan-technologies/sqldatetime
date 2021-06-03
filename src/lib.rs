@@ -27,7 +27,6 @@ pub use crate::interval::{IntervalDT, IntervalYM};
 pub use crate::time::Time;
 pub use crate::timestamp::Timestamp;
 
-#[cfg_attr(docsrs, doc(cfg(feature = "oracle")))]
 #[cfg(feature = "oracle")]
 pub use crate::oracle::Date as OracleDate;
 

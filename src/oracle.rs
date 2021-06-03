@@ -7,6 +7,7 @@ use std::convert::TryFrom;
 use std::fmt::Display;
 
 /// Oracle oriented `Date` type.
+#[cfg_attr(docsrs, doc(cfg(feature = "oracle")))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 #[repr(transparent)]
 pub struct Date(Timestamp);
