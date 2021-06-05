@@ -455,7 +455,7 @@ mod tests {
                 .unwrap()
                 .mul_f64(-5.2)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(0, 5, 22, 39, 600021).unwrap()
+            -IntervalDT::try_from_dhms(0, 5, 22, 39, 600020).unwrap()
         );
 
         assert_eq!(
@@ -463,7 +463,7 @@ mod tests {
                 .unwrap()
                 .div_f64(-5.2)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(0, 0, 23, 40, 1).unwrap()
+            -IntervalDT::try_from_dhms(0, 0, 23, 40, 0).unwrap()
         );
 
         assert_eq!(
@@ -487,7 +487,7 @@ mod tests {
                 .unwrap()
                 .mul_f64(100.1)
                 .unwrap(),
-            IntervalDT::try_from_dhms(8, 13, 18, 58, 400501).unwrap()
+            IntervalDT::try_from_dhms(8, 13, 18, 58, 400500).unwrap()
         );
 
         // Round
@@ -504,7 +504,7 @@ mod tests {
                 .unwrap()
                 .mul_f64(-5.57)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(0, 11, 25, 28, 880028).unwrap()
+            -IntervalDT::try_from_dhms(0, 11, 25, 28, 880027).unwrap()
         );
 
         // Out of range

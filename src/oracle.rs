@@ -107,6 +107,12 @@ impl Date {
         Ok(Date::from(self.0.add_interval_ym(interval)?))
     }
 
+    /// `Date` adds `Time`
+    #[inline]
+    pub const fn add_time(self, time: Time) -> Result<Timestamp> {
+        self.0.add_time(time)
+    }
+
     /// `Date` adds days
     #[inline]
     pub fn add_days(self, days: f64) -> Result<Date> {
@@ -133,6 +139,12 @@ impl Date {
     #[inline]
     pub fn sub_interval_dt(self, interval: IntervalDT) -> Result<Date> {
         self.add_interval_dt(-interval)
+    }
+
+    /// `Date` subtracts `Time`
+    #[inline]
+    pub const fn sub_time(self, time: Time) -> Result<Timestamp> {
+        self.0.sub_time(time)
     }
 
     /// `Date` subtracts `IntervalYM`
@@ -785,24 +797,6 @@ mod tests {
             generate_date(2002, 5, 31, 12, 5, 6)
         );
 
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            date.add_interval_ym(interval).unwrap(),
-            generate_date(2002, 4, 30, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            date.add_interval_ym(interval).unwrap(),
-            generate_date(2002, 2, 28, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
-        assert_eq!(
-            date.add_interval_ym(interval).unwrap(),
-            generate_date(2004, 2, 29, 12, 5, 6)
-        );
-
         // Sub negative
         let date = generate_date(2001, 3, 31, 12, 5, 6);
         let interval = IntervalYM::try_from_ym(0, 2).unwrap();
@@ -815,24 +809,6 @@ mod tests {
         assert_eq!(
             date.sub_interval_ym(-interval).unwrap(),
             generate_date(2002, 5, 31, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            date.sub_interval_ym(-interval).unwrap(),
-            generate_date(2002, 4, 30, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            date.sub_interval_ym(-interval).unwrap(),
-            generate_date(2002, 2, 28, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
-        assert_eq!(
-            date.sub_interval_ym(-interval).unwrap(),
-            generate_date(2004, 2, 29, 12, 5, 6)
         );
 
         // Sub positive
@@ -848,24 +824,6 @@ mod tests {
             generate_date(2000, 1, 31, 12, 5, 6)
         );
 
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            date.sub_interval_ym(interval).unwrap(),
-            generate_date(2000, 2, 29, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            date.sub_interval_ym(interval).unwrap(),
-            generate_date(2000, 4, 30, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
-        assert_eq!(
-            date.sub_interval_ym(interval).unwrap(),
-            generate_date(1999, 2, 28, 12, 5, 6)
-        );
-
         // Add negative
         let interval = IntervalYM::try_from_ym(0, 2).unwrap();
         assert_eq!(
@@ -879,31 +837,53 @@ mod tests {
             generate_date(2000, 1, 31, 12, 5, 6)
         );
 
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            date.add_interval_ym(-interval).unwrap(),
-            generate_date(2000, 2, 29, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            date.add_interval_ym(-interval).unwrap(),
-            generate_date(2000, 4, 30, 12, 5, 6)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
-        assert_eq!(
-            date.add_interval_ym(-interval).unwrap(),
-            generate_date(1999, 2, 28, 12, 5, 6)
-        );
-
         // Boundary test
-        let upper_ts = generate_date(9999, 12, 31, 23, 59, 59);
-        let lower_ts = generate_date(1, 1, 1, 0, 0, 0);
+        let upper_date = generate_date(9999, 12, 31, 23, 59, 59);
+        let lower_date = generate_date(1, 1, 1, 0, 0, 0);
         let interval = IntervalYM::try_from_ym(0, 1).unwrap();
 
-        assert!(upper_ts.add_interval_ym(interval).is_err());
-        assert!(lower_ts.sub_interval_ym(interval).is_err());
+        assert!(upper_date.add_interval_ym(interval).is_err());
+        assert!(lower_date.sub_interval_ym(interval).is_err());
+
+        // Month day overflow
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(date.add_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(date.add_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
+        assert!(date.add_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(date.sub_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(date.sub_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
+        assert!(date.sub_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(date.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(date.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
+        assert!(date.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
+        assert!(date.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(date.add_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(date.add_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
+        assert!(date.add_interval_ym(-interval).is_err());
     }
 
     #[test]
@@ -1123,6 +1103,10 @@ mod tests {
             generate_date(1, 1, 2, 2, 57, 47)
         );
         assert_eq!(
+            lower_ts.oracle_add_days(0.0000104).unwrap(),
+            generate_date(1, 1, 1, 0, 0, 1)
+        );
+        assert_eq!(
             upper_ts.oracle_sub_days(1.123456789).unwrap(),
             generate_date(9999, 12, 30, 21, 2, 12)
         );
@@ -1167,6 +1151,41 @@ mod tests {
         assert_eq!(
             ts.oracle_add_days(0.00000578).unwrap(),
             generate_date(1971, 1, 1, 0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn test_oracle_date_add_sub_time() {
+        assert!(Date::MAX
+            .add_time(generate_time(23, 59, 59, 12345))
+            .is_err());
+
+        assert!(Date::MIN
+            .sub_time(generate_time(23, 59, 59, 12345))
+            .is_err());
+
+        assert_eq!(
+            Date::MAX.sub_time(generate_time(1, 2, 3, 4)).unwrap(),
+            generate_ts(9999, 12, 31, 22, 57, 55, 999996)
+        );
+
+        assert_eq!(
+            generate_date(2000, 10, 2, 3, 4, 5)
+                .sub_time(generate_time(23, 5, 6, 7))
+                .unwrap(),
+            generate_ts(2000, 10, 1, 3, 58, 58, 999993)
+        );
+
+        assert_eq!(
+            Date::MIN.add_time(generate_time(1, 2, 3, 4)).unwrap(),
+            generate_ts(1, 1, 1, 1, 2, 3, 4)
+        );
+
+        assert_eq!(
+            generate_date(2000, 10, 2, 3, 4, 5)
+                .add_time(generate_time(23, 5, 6, 7))
+                .unwrap(),
+            generate_ts(2000, 10, 3, 2, 9, 11, 7)
         );
     }
 }

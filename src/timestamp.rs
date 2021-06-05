@@ -795,24 +795,6 @@ mod tests {
             generate_ts(2002, 5, 31, 12, 5, 6, 7)
         );
 
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            ts.add_interval_ym(interval).unwrap(),
-            generate_ts(2002, 4, 30, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            ts.add_interval_ym(interval).unwrap(),
-            generate_ts(2002, 2, 28, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
-        assert_eq!(
-            ts.add_interval_ym(interval).unwrap(),
-            generate_ts(2004, 2, 29, 12, 5, 6, 7)
-        );
-
         // Sub negative
         let ts = generate_ts(2001, 3, 31, 12, 5, 6, 7);
         let interval = IntervalYM::try_from_ym(0, 2).unwrap();
@@ -825,24 +807,6 @@ mod tests {
         assert_eq!(
             ts.sub_interval_ym(-interval).unwrap(),
             generate_ts(2002, 5, 31, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            ts.sub_interval_ym(-interval).unwrap(),
-            generate_ts(2002, 4, 30, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            ts.sub_interval_ym(-interval).unwrap(),
-            generate_ts(2002, 2, 28, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
-        assert_eq!(
-            ts.sub_interval_ym(-interval).unwrap(),
-            generate_ts(2004, 2, 29, 12, 5, 6, 7)
         );
 
         // Sub positive
@@ -858,24 +822,6 @@ mod tests {
             generate_ts(2000, 1, 31, 12, 5, 6, 7)
         );
 
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            ts.sub_interval_ym(interval).unwrap(),
-            generate_ts(2000, 2, 29, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            ts.sub_interval_ym(interval).unwrap(),
-            generate_ts(2000, 4, 30, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
-        assert_eq!(
-            ts.sub_interval_ym(interval).unwrap(),
-            generate_ts(1999, 2, 28, 12, 5, 6, 7)
-        );
-
         // Add negative
         let interval = IntervalYM::try_from_ym(0, 2).unwrap();
         assert_eq!(
@@ -889,24 +835,6 @@ mod tests {
             generate_ts(2000, 1, 31, 12, 5, 6, 7)
         );
 
-        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
-        assert_eq!(
-            ts.add_interval_ym(-interval).unwrap(),
-            generate_ts(2000, 2, 29, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
-        assert_eq!(
-            ts.add_interval_ym(-interval).unwrap(),
-            generate_ts(2000, 4, 30, 12, 5, 6, 7)
-        );
-
-        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
-        assert_eq!(
-            ts.add_interval_ym(-interval).unwrap(),
-            generate_ts(1999, 2, 28, 12, 5, 6, 7)
-        );
-
         // Boundary test
         let upper_ts = generate_ts(9999, 12, 31, 23, 59, 59, 999999);
         let lower_ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
@@ -914,6 +842,46 @@ mod tests {
 
         assert!(upper_ts.add_interval_ym(interval).is_err());
         assert!(lower_ts.sub_interval_ym(interval).is_err());
+
+        // Month day overflow
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(ts.add_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(ts.add_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
+        assert!(ts.add_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(ts.sub_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(ts.sub_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 11).unwrap();
+        assert!(ts.sub_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(ts.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(ts.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
+        assert!(ts.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
+        assert!(ts.sub_interval_ym(interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        assert!(ts.add_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(0, 11).unwrap();
+        assert!(ts.add_interval_ym(-interval).is_err());
+
+        let interval = IntervalYM::try_from_ym(2, 1).unwrap();
+        assert!(ts.add_interval_ym(-interval).is_err());
     }
 
     #[test]
