@@ -99,11 +99,23 @@ impl Date {
     /// Creates a `Date` from the given year, month, and day.
     #[inline]
     pub const fn try_from_ymd(year: i32, month: u32, day: u32) -> Result<Date> {
-        if Date::is_valid(year, month, day) {
-            Ok(unsafe { Date::from_ymd_unchecked(year, month, day) })
-        } else {
-            Err(Error::OutOfRange)
+        if year < DATE_MIN_YEAR || year > DATE_MAX_YEAR {
+            return Err(Error::DateOutOfRange);
         }
+
+        if month < 1 || month > MONTHS_PER_YEAR {
+            return Err(Error::InvalidMonth);
+        }
+
+        if day < 1 || day > 31 {
+            return Err(Error::InvalidDay);
+        }
+
+        if day > days_of_month(year, month) {
+            return Err(Error::InvalidDate);
+        }
+
+        Ok(unsafe { Date::from_ymd_unchecked(year, month, day) })
     }
 
     /// Checks if the given year, month, and day fields are valid.
@@ -150,7 +162,7 @@ impl Date {
         if is_valid_date(days) {
             Ok(unsafe { Date::from_days_unchecked(days) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::DateOutOfRange)
         }
     }
 
@@ -201,7 +213,7 @@ impl Date {
         let result = self.days().checked_add(days);
         match result {
             Some(d) => Date::try_from_days(d),
-            None => Err(Error::OutOfRange),
+            None => Err(Error::DateOutOfRange),
         }
     }
 
@@ -253,7 +265,7 @@ impl Date {
         let result = self.days().checked_sub(days);
         match result {
             Some(d) => Date::try_from_days(d),
-            None => Err(Error::OutOfRange),
+            None => Err(Error::DateOutOfRange),
         }
     }
 

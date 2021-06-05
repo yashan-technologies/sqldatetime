@@ -43,7 +43,7 @@ impl Time {
         if Time::is_valid(hour, minute, sec, usec) {
             Ok(unsafe { Time::from_hms_unchecked(hour, minute, sec, usec) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::TimeOutOfRange)
         }
     }
 
@@ -92,7 +92,7 @@ impl Time {
         if is_valid_time(usecs) {
             Ok(unsafe { Time::from_usecs_unchecked(usecs) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::TimeOutOfRange)
         }
     }
 
