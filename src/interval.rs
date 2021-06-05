@@ -12,7 +12,7 @@ use crate::{DateTime, Formatter};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
-use std::ops::{Div, Mul, Neg};
+use std::ops::Neg;
 
 const INTERVAL_MAX_YEAR: i32 = 178_000_000;
 const INTERVAL_MAX_DAY: i32 = 100_000_000;
@@ -69,7 +69,7 @@ impl IntervalYM {
         if IntervalYM::is_valid_ym(year, month) {
             Ok(unsafe { IntervalYM::from_ym_unchecked(year, month) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::IntervalOutOfRange)
         }
     }
 
@@ -79,7 +79,7 @@ impl IntervalYM {
         if IntervalYM::is_valid_months(months) {
             Ok(unsafe { IntervalYM::from_months_unchecked(months) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::IntervalOutOfRange)
         }
     }
 
@@ -146,7 +146,7 @@ impl IntervalYM {
         let result = self.months().checked_add(interval.months());
         match result {
             Some(i) => IntervalYM::try_from_months(i),
-            None => Err(Error::OutOfRange),
+            None => Err(Error::IntervalOutOfRange),
         }
     }
 
@@ -160,12 +160,15 @@ impl IntervalYM {
     #[inline]
     pub fn mul_f64(self, number: f64) -> Result<IntervalYM> {
         let months = self.months() as f64;
-        let result = months.mul(number);
+        let result = months * number;
 
-        if !result.is_finite() {
-            return Err(Error::OutOfRange);
+        if result.is_infinite() {
+            Err(Error::NumericOverflow)
+        } else if result.is_nan() {
+            Err(Error::InvalidNumber)
+        } else {
+            IntervalYM::try_from_months(result as i32)
         }
-        IntervalYM::try_from_months(result as i32)
     }
 
     /// `IntervalYM` divides `f64`
@@ -175,12 +178,15 @@ impl IntervalYM {
             return Err(Error::DivideByZero);
         }
         let months = self.months() as f64;
-        let result = months.div(number);
+        let result = months / number;
 
-        if !result.is_finite() {
-            return Err(Error::OutOfRange);
+        if result.is_infinite() {
+            Err(Error::NumericOverflow)
+        } else if result.is_nan() {
+            Err(Error::InvalidNumber)
+        } else {
+            IntervalYM::try_from_months(result as i32)
         }
-        IntervalYM::try_from_months(result as i32)
     }
 }
 
@@ -304,7 +310,7 @@ impl IntervalDT {
         if IntervalDT::is_valid(day, hour, minute, sec, usec) {
             Ok(unsafe { IntervalDT::from_dhms_unchecked(day, hour, minute, sec, usec) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::IntervalOutOfRange)
         }
     }
 
@@ -324,7 +330,7 @@ impl IntervalDT {
         if IntervalDT::is_valid_usecs(usecs) {
             Ok(unsafe { IntervalDT::from_usecs_unchecked(usecs) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::IntervalOutOfRange)
         }
     }
 
@@ -422,7 +428,7 @@ impl IntervalDT {
         let result = self.usecs().checked_add(interval.usecs());
         match result {
             Some(i) => IntervalDT::try_from_usecs(i),
-            None => Err(Error::OutOfRange),
+            None => Err(Error::IntervalOutOfRange),
         }
     }
 
@@ -436,11 +442,15 @@ impl IntervalDT {
     #[inline]
     pub fn mul_f64(self, number: f64) -> Result<IntervalDT> {
         let usecs = self.usecs() as f64;
-        let result = usecs.mul(number);
-        if !result.is_finite() {
-            return Err(Error::OutOfRange);
+        let result = usecs * number;
+
+        if result.is_infinite() {
+            Err(Error::NumericOverflow)
+        } else if result.is_nan() {
+            Err(Error::InvalidNumber)
+        } else {
+            IntervalDT::try_from_usecs(result as i64)
         }
-        IntervalDT::try_from_usecs(result as i64)
     }
 
     /// `IntervalDT` divides `f64`
@@ -450,12 +460,15 @@ impl IntervalDT {
             return Err(Error::DivideByZero);
         }
         let usecs = self.usecs() as f64;
-        let result = usecs.div(number);
+        let result = usecs / number;
 
-        if !result.is_finite() {
-            return Err(Error::OutOfRange);
+        if result.is_infinite() {
+            Err(Error::NumericOverflow)
+        } else if result.is_nan() {
+            Err(Error::InvalidNumber)
+        } else {
+            IntervalDT::try_from_usecs(result as i64)
         }
-        IntervalDT::try_from_usecs(result as i64)
     }
 
     /// `IntervalDT` subtracts `Time`

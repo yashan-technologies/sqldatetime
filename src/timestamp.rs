@@ -107,7 +107,7 @@ impl Timestamp {
         if is_valid_timestamp(usecs) {
             Ok(unsafe { Timestamp::from_usecs_unchecked(usecs) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::DateOutOfRange)
         }
     }
 
@@ -117,7 +117,7 @@ impl Timestamp {
         let result = self.usecs().checked_add(interval.usecs());
         match result {
             Some(ts) => Timestamp::try_from_usecs(ts),
-            None => Err(Error::OutOfRange),
+            None => Err(Error::DateOutOfRange),
         }
     }
 
@@ -142,13 +142,16 @@ impl Timestamp {
     #[inline]
     pub fn add_days(self, days: f64) -> Result<Timestamp> {
         let microseconds = (days * USECONDS_PER_DAY as f64).round();
-        if !microseconds.is_finite() {
-            return Err(Error::OutOfRange);
-        }
-        let result = self.usecs().checked_add(microseconds as i64);
-        match result {
-            Some(d) => Timestamp::try_from_usecs(d),
-            None => Err(Error::OutOfRange),
+        if microseconds.is_infinite() {
+            Err(Error::NumericOverflow)
+        } else if microseconds.is_nan() {
+            Err(Error::InvalidNumber)
+        } else {
+            let result = self.usecs().checked_add(microseconds as i64);
+            match result {
+                Some(d) => Timestamp::try_from_usecs(d),
+                None => Err(Error::DateOutOfRange),
+            }
         }
     }
 

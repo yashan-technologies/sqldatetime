@@ -72,7 +72,7 @@ impl Date {
         if Self::is_valid_date(usecs) {
             Ok(unsafe { Date(Timestamp::from_usecs_unchecked(usecs)) })
         } else {
-            Err(Error::OutOfRange)
+            Err(Error::DateOutOfRange)
         }
     }
 
