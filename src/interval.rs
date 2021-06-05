@@ -436,7 +436,7 @@ impl IntervalDT {
     #[inline]
     pub fn mul_f64(self, number: f64) -> Result<IntervalDT> {
         let usecs = self.usecs() as f64;
-        let result = usecs.mul(number).round();
+        let result = usecs.mul(number);
         if !result.is_finite() {
             return Err(Error::OutOfRange);
         }
@@ -450,7 +450,7 @@ impl IntervalDT {
             return Err(Error::DivideByZero);
         }
         let usecs = self.usecs() as f64;
-        let result = usecs.div(number).round();
+        let result = usecs.div(number);
 
         if !result.is_finite() {
             return Err(Error::OutOfRange);
@@ -944,7 +944,7 @@ mod tests {
                 .unwrap()
                 .div_f64(-5.1)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(0, 5, 6, 29, 19609).unwrap()
+            -IntervalDT::try_from_dhms(0, 5, 6, 29, 19608).unwrap()
         );
 
         assert_eq!(
@@ -952,7 +952,7 @@ mod tests {
                 .unwrap()
                 .mul_f64(-5.57)
                 .unwrap(),
-            -IntervalDT::try_from_dhms(6, 1, 6, 16, 880028).unwrap()
+            -IntervalDT::try_from_dhms(6, 1, 6, 16, 880027).unwrap()
         );
 
         // Out of range
