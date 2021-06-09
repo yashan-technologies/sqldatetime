@@ -324,7 +324,7 @@ pub enum Field {
     /// 'SS'
     Second,
     /// 'FF[1..9]'
-    Fraction(u8),
+    Fraction(Option<u8>),
     /// 'AM', 'A.M.', 'PM', 'P.M.'
     AmPm(AmPmStyle),
 }
@@ -499,12 +499,12 @@ impl<'a> FormatParser<'a> {
                     self.advance(1);
                     let p = ch - b'0';
                     if (1..=9).contains(&p) {
-                        Field::Fraction(p)
+                        Field::Fraction(Some(p))
                     } else {
                         Field::Invalid
                     }
                 }
-                _ => Field::Fraction(6),
+                _ => Field::Fraction(None),
             },
             _ => Field::Invalid,
         }
@@ -821,7 +821,8 @@ impl Formatter {
                 Field::Minute => write!(w, "{:02}", dt.minute())?,
                 Field::Second => write!(w, "{:02}", dt.sec())?,
                 Field::Fraction(p) => {
-                    write!(w, "{:<0width$}", dt.fraction(*p), width = *p as usize)?
+                    let p = p.unwrap_or(6);
+                    write!(w, "{:<0width$}", dt.fraction(p), width = p as usize)?
                 }
                 Field::AmPm(am_pm) => write!(w, "{}", am_pm.format(dt.hour24()))?,
                 Field::MonthName(style) => write!(w, "{}", dt.month_name(*style))?,
@@ -948,7 +949,8 @@ impl Formatter {
                     if is_fraction_set {
                         return Err(Error::ParseError("Duplicate minute".to_string()));
                     }
-                    let (usec, rem) = parse_fraction(s, *p as usize)?;
+                    // When parsing, if FF is given, the default precision is 9
+                    let (usec, rem) = parse_fraction(s, p.unwrap_or(9) as usize)?;
                     s = rem;
                     dt.usec = usec;
                     is_fraction_set = true;
@@ -1069,7 +1071,10 @@ fn parse_fraction(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
     let int = digits
         .iter()
         .fold(0, |int, &i| int * 10 + (i - b'0') as i32);
-    Ok(((int as f64 * FRACTION_FACTOR[digits.len()]) as u32, s))
+    Ok((
+        (int as f64 * FRACTION_FACTOR[digits.len()]).round() as u32,
+        s,
+    ))
 }
 
 #[inline]
@@ -1147,7 +1152,7 @@ mod tests {
         assert_eq!(parser.next(), Some(Field::Colon));
         assert_eq!(parser.next(), Some(Field::Second));
         assert_eq!(parser.next(), Some(Field::Dot));
-        assert_eq!(parser.next(), Some(Field::Fraction(9)));
+        assert_eq!(parser.next(), Some(Field::Fraction(Some(9))));
         assert_eq!(parser.next(), None);
     }
 
