@@ -546,6 +546,38 @@ mod tests {
                 );
             }
 
+            // fraction rounding and etc
+            {
+                assert_eq!(
+                    Timestamp::parse(".12345", ".ff").unwrap(),
+                    generate_ts(1, 1, 1, 0, 0, 0, 123450)
+                );
+                assert_eq!(
+                    Timestamp::parse(".123456789", ".ff").unwrap(),
+                    generate_ts(1, 1, 1, 0, 0, 0, 123457)
+                );
+                assert_eq!(
+                    Timestamp::parse(".12345678", ".ff").unwrap(),
+                    generate_ts(1, 1, 1, 0, 0, 0, 123457)
+                );
+                assert_eq!(
+                    Timestamp::parse(".1234567", ".ff7").unwrap(),
+                    generate_ts(1, 1, 1, 0, 0, 0, 123457)
+                );
+                assert!(Timestamp::parse(".12345678", ".ff7").is_err());
+                assert_eq!(
+                    Timestamp::parse(".123456", ".ff6").unwrap(),
+                    generate_ts(1, 1, 1, 0, 0, 0, 123456)
+                );
+                assert!(Timestamp::parse(".123456789", ".ff2").is_err());
+
+                let timestamp = generate_ts(1, 2, 3, 4, 5, 6, 123456);
+                assert_eq!(format!("{}", timestamp.format("ff6").unwrap()), "123456");
+                assert_eq!(format!("{}", timestamp.format("ff").unwrap()), "123456");
+                assert_eq!(format!("{}", timestamp.format("ff9").unwrap()), "123456000");
+                assert_eq!(format!("{}", timestamp.format("ff5").unwrap()), "12345");
+            }
+
             // Day parse check
             {
                 let ts = generate_ts(2021, 4, 22, 3, 4, 5, 6);
