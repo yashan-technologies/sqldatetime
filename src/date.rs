@@ -623,7 +623,7 @@ mod tests {
         let date = generate_date(2001, 12, 31);
         let interval = IntervalDT::try_from_dhms(1, 0, 0, 0, 1).unwrap();
         let expect = generate_ts(2002, 1, 1, 0, 0, 0, 1);
-        assert_eq!(date.clone().add_interval_dt(interval).unwrap(), expect);
+        assert_eq!(date.add_interval_dt(interval).unwrap(), expect);
 
         // Sub negative interval with carry test
         let interval = -IntervalDT::try_from_dhms(1, 0, 0, 0, 1).unwrap();
@@ -643,7 +643,7 @@ mod tests {
         let date = generate_date(1970, 1, 1);
         let interval = -IntervalDT::try_from_dhms(0, 0, 0, 0, 1).unwrap();
         let expect = generate_ts(1969, 12, 31, 23, 59, 59, 999999);
-        assert_eq!(date.clone().add_interval_dt(interval).unwrap(), expect);
+        assert_eq!(date.add_interval_dt(interval).unwrap(), expect);
 
         // Sub positive interval with carry test
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 1).unwrap();
@@ -653,10 +653,10 @@ mod tests {
         let date = generate_date(9999, 12, 31);
         let interval = IntervalDT::try_from_dhms(5, 4, 3, 2, 1).unwrap();
         let expect = generate_ts(9999, 12, 25, 19, 56, 57, 999999);
-        assert_eq!(date.clone().sub_interval_dt(interval).unwrap(), expect);
+        assert_eq!(date.sub_interval_dt(interval).unwrap(), expect);
 
         let interval = IntervalDT::try_from_dhms(1, 0, 0, 0, 1).unwrap();
-        assert!(date.clone().add_interval_dt(interval).is_err());
+        assert!(date.add_interval_dt(interval).is_err());
 
         let interval = IntervalDT::try_from_dhms(12345, 12, 3, 5, 6).unwrap();
         assert!(date.add_interval_dt(interval).is_err());
@@ -664,10 +664,10 @@ mod tests {
         let date = generate_date(1, 1, 1);
         let interval = IntervalDT::try_from_dhms(5, 4, 3, 2, 1).unwrap();
         let expect = generate_ts(1, 1, 6, 4, 3, 2, 1);
-        assert_eq!(date.clone().add_interval_dt(interval).unwrap(), expect);
+        assert_eq!(date.add_interval_dt(interval).unwrap(), expect);
 
         let interval = IntervalDT::try_from_dhms(0, 0, 0, 0, 1).unwrap();
-        assert!(date.clone().sub_interval_dt(interval).is_err());
+        assert!(date.sub_interval_dt(interval).is_err());
 
         let interval = IntervalDT::try_from_dhms(12345, 12, 3, 5, 6).unwrap();
         assert!(date.sub_interval_dt(interval).is_err());
