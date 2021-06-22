@@ -26,11 +26,11 @@ pub enum Error {
     NumericOverflow,
     #[error("divisor is equal to zero")]
     DivideByZero,
-    #[error("Invalid format: {0}")]
+    #[error("invalid format: {0}")]
     InvalidFormat(String),
-    #[error("Failed to format: {0}")]
+    #[error("failed to format: {0}")]
     FormatError(String),
-    #[error("Failed to parse: {0}")]
+    #[error("failed to parse: {0}")]
     ParseError(String),
 }
 
