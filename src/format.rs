@@ -306,7 +306,7 @@ pub enum Field {
     /// 'T'
     T,
     /// 'YYYY'
-    Year,
+    Year(u8),
     /// 'MM'
     Month,
     /// 'DD'
@@ -448,9 +448,15 @@ impl<'a> FormatParser<'a> {
             None => return Field::Invalid,
         };
 
-        if CaseInsensitive::starts_with(remain, b"YYY") {
-            self.advance(3);
-            Field::Year
+        let len = remain
+            .iter()
+            .take(4)
+            .take_while(|&y| y.eq_ignore_ascii_case(&b'y'))
+            .count();
+
+        if len > 0 {
+            self.advance(len);
+            Field::Year(len as u8)
         } else {
             Field::Invalid
         }
@@ -731,7 +737,10 @@ impl<'a> FormatParser<'a> {
                     }
                     b'S' | b's' => self.parse_second(),
                     b'T' => Field::T,
-                    b'Y' | b'y' => self.parse_year(),
+                    b'Y' | b'y' => {
+                        self.back(1);
+                        self.parse_year()
+                    }
                     _ => Field::Invalid,
                 };
                 Some(field)
@@ -751,6 +760,7 @@ impl<'a> Iterator for FormatParser<'a> {
 }
 
 /// Date/Time formatter.
+#[derive(Debug)]
 pub struct Formatter {
     fields: StackVec<Field, MAX_FIELDS>,
 }
@@ -806,7 +816,7 @@ impl Formatter {
                 Field::Dot => w.write_char('.')?,
                 Field::Semicolon => w.write_char(';')?,
                 Field::T => w.write_char('T')?,
-                Field::Year => write!(w, "{:04}", dt.year())?,
+                Field::Year(n) => write!(w, "{:<0width$}", dt.year(), width = *n as usize)?,
                 Field::Month => write!(w, "{:02}", dt.month())?,
                 Field::Day => write!(w, "{:02}", dt.day())?,
                 Field::Hour24 => write!(w, "{:02}", dt.hour24())?,
@@ -859,11 +869,33 @@ impl Formatter {
             }};
         }
 
+        macro_rules! expect_char_with_tolerence {
+            ($ch: expr) => {{
+                if expect_char(s, $ch) {
+                    s = &s[1..];
+                } else {
+                    continue;
+                }
+            }};
+        }
+
         macro_rules! expect_number {
             ($max_len: expr) => {{
                 let (neg, n, rem) = parse_number(s, $max_len)?;
                 s = rem;
                 (n, neg)
+            }};
+        }
+
+        macro_rules! expect_number_with_tolerance {
+            ($max_len: expr, $default: expr) => {{
+                if s.is_empty() {
+                    ($default, $default < 0)
+                } else {
+                    let (neg, n, rem) = parse_number(s, $max_len)?;
+                    s = rem;
+                    (n, neg)
+                }
             }};
         }
 
@@ -879,28 +911,38 @@ impl Formatter {
 
         for field in self.fields.iter() {
             match field {
+                // todo ignore the absence of symbols; Format exact
                 Field::Invalid => unreachable!(),
-                Field::Blank => expect_char!(b' '),
+                Field::Blank => expect_char_with_tolerence!(b' '),
                 Field::Hyphen => expect_char!(b'-'),
-                Field::Colon => expect_char!(b':'),
+                Field::Colon => expect_char_with_tolerence!(b':'),
                 Field::Slash => expect_char!(b'/'),
                 Field::Backslash => expect_char!(b'\\'),
                 Field::Comma => expect_char!(b','),
-                Field::Dot => expect_char!(b'.'),
+                Field::Dot => expect_char_with_tolerence!(b'.'),
                 Field::Semicolon => expect_char!(b';'),
                 Field::T => expect_char!(b'T'),
-                Field::Year => {
+                Field::Year(n) => {
                     if is_year_set {
-                        return Err(Error::ParseError("Duplicate year".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (year) appears twice".to_string(),
+                        ));
                     }
-                    let (year, negate) = expect_number!(T::YEAR_MAX_LENGTH);
+                    let len = if T::YEAR_MAX_LENGTH > 4 {
+                        T::YEAR_MAX_LENGTH
+                    } else {
+                        *n as usize
+                    };
+                    let (year, negate) = expect_number!(len);
                     dt.year = year;
                     dt.negate = negate;
                     is_year_set = true;
                 }
                 Field::Month => {
                     if is_month_set {
-                        return Err(Error::ParseError("Duplicate month".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (month) appears twice".to_string(),
+                        ));
                     }
                     let (month, _) = expect_number!(T::MONTH_MAX_LENGTH);
                     dt.month = month as u32;
@@ -908,7 +950,9 @@ impl Formatter {
                 }
                 Field::Day => {
                     if is_day_set {
-                        return Err(Error::ParseError("Duplicate day".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (day) appears twice".to_string(),
+                        ));
                     }
                     let (day, negate) = expect_number!(T::DAY_MAX_LENGTH);
                     dt.day = day.abs() as u32;
@@ -916,38 +960,53 @@ impl Formatter {
                     is_day_set = true;
                 }
                 Field::Hour24 => {
-                    // todo hh24 excludes hh12 and ampm
-                    let (hour, _) = expect_number!(T::HOUR_MAX_LENGTH);
+                    // todo hh24 excludes hh12 and amp
+                    if is_hour_set {
+                        return Err(Error::ParseError(
+                            "format code (hour) appears twice".to_string(),
+                        ));
+                    }
+
+                    let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
                     dt.hour = hour as u32;
+                    is_hour_set = true;
                 }
                 Field::Hour12 => {
                     if is_hour_set {
-                        return Err(Error::ParseError("Duplicate hour".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (hour) appears twice".to_string(),
+                        ));
                     }
-                    let (hour, _) = expect_number!(T::HOUR_MAX_LENGTH);
+                    let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
                     dt.hour = hour as u32;
                     dt.adjust_hour12();
                     is_hour_set = true;
                 }
                 Field::Minute => {
                     if is_min_set {
-                        return Err(Error::ParseError("Duplicate minute".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (minute) appears twice".to_string(),
+                        ));
                     }
-                    let (minute, _) = expect_number!(T::MINUTE_MAX_LENGTH);
+                    let (minute, _) = expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0);
                     dt.minute = minute as u32;
                     is_min_set = true;
                 }
                 Field::Second => {
                     if is_sec_set {
-                        return Err(Error::ParseError("Duplicate second".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (second) appears twice".to_string(),
+                        ));
                     }
-                    let (sec, _) = expect_number!(T::SECOND_MAX_LENGTH);
+                    let (sec, _) = expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0);
                     dt.sec = sec as u32;
                     is_sec_set = true;
                 }
                 Field::Fraction(p) => {
                     if is_fraction_set {
-                        return Err(Error::ParseError("Duplicate minute".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (fraction) appears twice".to_string(),
+                        ));
                     }
                     // When parsing, if FF is given, the default precision is 9
                     let (usec, rem) = parse_fraction(s, p.unwrap_or(9) as usize)?;
@@ -957,7 +1016,9 @@ impl Formatter {
                 }
                 Field::AmPm(_) => {
                     if dt.ampm.is_some() {
-                        return Err(Error::ParseError("Duplicate AM/PM".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (am/pm) appears twice".to_string(),
+                        ));
                     }
                     let (am_pm, rem) = parse_ampm(s)?;
                     s = rem;
@@ -967,7 +1028,9 @@ impl Formatter {
                 }
                 Field::MonthName(_) => {
                     if is_month_set {
-                        return Err(Error::ParseError("Duplicate month".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (month) appears twice".to_string(),
+                        ));
                     }
                     let (month, rem) = parse_month_name(s)?;
                     s = rem;
@@ -977,7 +1040,9 @@ impl Formatter {
                 }
                 Field::DayName(_) => {
                     if dow.is_some() {
-                        return Err(Error::ParseError("Duplicate day of week".to_string()));
+                        return Err(Error::ParseError(
+                            "format code (day of week) appears twice".to_string(),
+                        ));
                     }
                     let (d, rem) = parse_week_day_name(s)?;
                     s = rem;
@@ -989,7 +1054,7 @@ impl Formatter {
 
         if !s.is_empty() {
             return Err(Error::ParseError(
-                "Format picture ends before converting entire input string".to_string(),
+                "format picture ends before converting entire input string".to_string(),
             ));
         }
 
@@ -998,7 +1063,7 @@ impl Formatter {
             let date = Date::try_from(&dt)?;
             if date.day_of_week() != d {
                 return Err(Error::ParseError(
-                    "Day of week conflicts with Julian date".to_string(),
+                    "day of week conflicts with Julian date".to_string(),
                 ));
             }
         }
@@ -1020,12 +1085,12 @@ fn parse_number(input: &[u8], max_len: usize) -> Result<(bool, i32, &[u8])> {
             b'-' => (true, &input[1..]),
             _ => (false, input),
         },
-        None => return Err(Error::ParseError("Invalid number".to_string())),
+        None => return Err(Error::ParseError("invalid number".to_string())),
     };
 
     let (digits, s) = eat_digits(s, max_len);
     if digits.is_empty() || digits.len() > 9 {
-        return Err(Error::ParseError("Invalid number".to_string()));
+        return Err(Error::ParseError("invalid number".to_string()));
     }
 
     let int = digits
@@ -1065,7 +1130,7 @@ fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
 #[inline]
 fn parse_fraction(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
     if s.is_empty() {
-        return Err(Error::ParseError("Fraction is missing".to_string()));
+        return Ok((0, s));
     }
     let (digits, s) = eat_digits(s, max_len);
     let int = digits
@@ -1091,7 +1156,7 @@ fn parse_month_name(s: &[u8]) -> Result<(Month, &[u8])> {
         }
     }
 
-    Err(Error::ParseError("Month is missing".to_string()))
+    Err(Error::ParseError("month is missing".to_string()))
 }
 
 #[inline]
@@ -1108,7 +1173,7 @@ fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
         }
     }
 
-    Err(Error::ParseError("Week day is missing".to_string()))
+    Err(Error::ParseError("week day is missing".to_string()))
 }
 
 pub struct LazyFormat<T: Into<NaiveDateTime>> {
@@ -1139,8 +1204,9 @@ mod tests {
 
     #[test]
     fn test_format_parser() {
-        let mut parser = FormatParser::new(b"yyyy-mm-dd hh24:mi:ss.ff9");
-        assert_eq!(parser.next(), Some(Field::Year));
+        let mut parser = FormatParser::new(b"yyyyyy-mm-dd hh24:mi:ss.ff9");
+        assert_eq!(parser.next(), Some(Field::Year(4)));
+        assert_eq!(parser.next(), Some(Field::Year(2)));
         assert_eq!(parser.next(), Some(Field::Hyphen));
         assert_eq!(parser.next(), Some(Field::Month));
         assert_eq!(parser.next(), Some(Field::Hyphen));

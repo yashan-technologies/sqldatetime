@@ -601,12 +601,24 @@ mod tests {
         let interval2 = IntervalYM::parse("178000000-00", "yyyy-mm").unwrap();
         assert_eq!(interval2, interval);
 
+        let interval = -IntervalYM::try_from_ym(1, 0).unwrap();
+        let fmt = format!("{}", interval.format("yy-mm").unwrap());
+        assert_eq!(fmt, "-01-00");
+
+        let interval = IntervalYM::try_from_ym(123, 2).unwrap();
+        let fmt = format!("{}", interval.format("yy-mm").unwrap());
+        assert_eq!(fmt, "123-02");
+
         let interval = -IntervalYM::try_from_ym(178000000, 0).unwrap();
         assert_eq!(interval.extract(), (Negative, 178000000, 0));
         let interval = IntervalYM::try_from_ym(178000000, 0).unwrap().negate();
         assert_eq!(interval.extract(), (Negative, 178000000, 0));
         let fmt = format!("{}", interval.format("yyyy-mm").unwrap());
         assert_eq!(fmt, "-178000000-00");
+
+        let fmt = format!("{}", interval.format("yy-mm").unwrap());
+        assert_eq!(fmt, "-178000000-00");
+
         let interval2 = IntervalYM::parse("-178000000-00", "yyyy-mm").unwrap();
         assert_eq!(interval2, interval);
 
@@ -635,6 +647,14 @@ mod tests {
 
         let interval = IntervalYM::try_from_ym(12345, 1).unwrap();
         let interval2 = IntervalYM::parse("12345-1", "yyyy-mm").unwrap();
+        assert_eq!(interval, interval2);
+
+        let interval = IntervalYM::try_from_ym(12345, 1).unwrap();
+        let interval2 = IntervalYM::parse("12345-1", "yy-mm").unwrap();
+        assert_eq!(interval, interval2);
+
+        let interval = IntervalYM::try_from_ym(1, 1).unwrap();
+        let interval2 = IntervalYM::parse("1-1", "yy-mm").unwrap();
         assert_eq!(interval, interval2);
 
         // Invalid

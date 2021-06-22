@@ -472,6 +472,23 @@ mod tests {
                 assert_eq!(ts, ts2)
             }
 
+            // Absence of time
+            {
+                let timestamp = Timestamp::parse("2020-11-12", "YYYY-MM-DD HH24:MI:SS").unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 0, 0, 0, 0));
+
+                let timestamp = Timestamp::parse("2020-11-12 11", "YYYY-MM-DD HH24:MI:SS").unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 0, 0, 0));
+
+                let timestamp =
+                    Timestamp::parse("2020-11-12 11:23", "YYYY-MM-DD HH24:MI:SS").unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 0, 0));
+
+                let timestamp =
+                    Timestamp::parse("2020-11-12 11:23:25", "YYYY-MM-DD HH24:MI:SS.ff").unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 0));
+            }
+
             // Short format
             {
                 let ts = generate_ts(1234, 8, 6, 7, 8, 9, 10);

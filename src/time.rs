@@ -354,6 +354,24 @@ mod tests {
             assert_eq!(format!("{}", time.format("FF").unwrap()), "000010");
         }
 
+        // tolerate absence of time
+        {
+            // Absence of time
+            {
+                let time = Time::parse("", "HH24:MI:SS").unwrap();
+                assert_eq!(time, Time::try_from_hms(0, 0, 0, 0).unwrap());
+
+                let time = Time::parse("11", "HH24:MI:SS").unwrap();
+                assert_eq!(time, Time::try_from_hms(11, 0, 0, 0).unwrap());
+
+                let time = Time::parse("11:23", "HH24:MI:SS").unwrap();
+                assert_eq!(time, Time::try_from_hms(11, 23, 0, 0).unwrap());
+
+                let time = Time::parse("11:23:25", "HH24:MI:SS.ff").unwrap();
+                assert_eq!(time, Time::try_from_hms(11, 23, 25, 0).unwrap());
+            }
+        }
+
         // Invalid
         {
             assert!(Time::parse("60", "SS").is_err());
