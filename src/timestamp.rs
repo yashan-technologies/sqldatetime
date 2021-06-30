@@ -210,9 +210,7 @@ impl From<Timestamp> for NaiveDateTime {
             sec,
             usec,
             ampm: None,
-            is_interval: false,
             negate: false,
-            date: Some(date),
         }
     }
 }
@@ -250,17 +248,17 @@ impl From<Date> for Timestamp {
 impl DateTime for Timestamp {
     #[inline]
     fn year(&self) -> Option<i32> {
-        self.date().year()
+        Timestamp::date(*self).year()
     }
 
     #[inline]
     fn month(&self) -> Option<i32> {
-        self.date().month()
+        Timestamp::date(*self).month()
     }
 
     #[inline]
     fn day(&self) -> Option<i32> {
-        self.date().day()
+        Timestamp::date(*self).day()
     }
 
     #[inline]
@@ -276,6 +274,11 @@ impl DateTime for Timestamp {
     #[inline]
     fn second(&self) -> Option<f64> {
         self.time().second()
+    }
+
+    #[inline]
+    fn date(&self) -> Option<Date> {
+        Some(Timestamp::date(*self))
     }
 }
 

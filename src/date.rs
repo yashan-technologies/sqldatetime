@@ -316,7 +316,6 @@ impl From<Date> for NaiveDateTime {
             year,
             month,
             day,
-            date: Some(date),
             ..NaiveDateTime::new()
         }
     }
@@ -387,6 +386,11 @@ impl DateTime for Date {
     fn second(&self) -> Option<f64> {
         None
     }
+
+    #[inline(always)]
+    fn date(&self) -> Option<Date> {
+        Some(*self)
+    }
 }
 
 #[cfg(test)]
@@ -412,7 +416,7 @@ mod tests {
             // Parse
 
             let date = Date::try_from_ymd(9999, 12, 31).unwrap();
-            let date2 = Date::parse("PM 9999\\12-31", "AM yyyy\\mm-dd").unwrap();
+            let date2 = Date::parse("9999\\12-31", "yyyy\\mm-dd").unwrap();
             assert_eq!(date2, date);
 
             let date2 = Date::parse("9999-. 12--31", "YYYY-. MM--DD").unwrap();
@@ -440,7 +444,7 @@ mod tests {
         // Default
         {
             let date = generate_date(1, 1, 1);
-            let date2 = Date::parse("5", "ss").unwrap();
+            let date2 = Date::parse(" ", " ").unwrap();
             assert_eq!(date, date2);
 
             let date = generate_date(1, 1, 1);
@@ -524,6 +528,10 @@ mod tests {
             assert!(Date::parse("10000-04-30", "yyyy-mm-dd",).is_err());
             assert!(Date::parse("2021-04-22", "ABCD-mm-dd",).is_err());
             assert!(Date::parse("2021423", "yyyymmdd",).is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd hh",).is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd mi",).is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ss",).is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ff",).is_err());
         }
     }
 
