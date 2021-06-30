@@ -44,4 +44,6 @@ pub trait DateTime {
     fn minute(&self) -> Option<i32>;
     /// Extracts second from date time.
     fn second(&self) -> Option<f64>;
+    /// Extracts second from date time.
+    fn date(&self) -> Option<Date>;
 }

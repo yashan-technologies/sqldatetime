@@ -6,7 +6,7 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{DateTime, IntervalDT};
+use crate::{Date, DateTime, IntervalDT};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -243,6 +243,11 @@ impl DateTime for Time {
     fn second(&self) -> Option<f64> {
         let remain_time = self.usecs() % USECONDS_PER_MINUTE;
         Some(remain_time as f64 / USECONDS_PER_SECOND as f64)
+    }
+
+    #[inline(always)]
+    fn date(&self) -> Option<Date> {
+        None
     }
 }
 

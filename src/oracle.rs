@@ -183,17 +183,17 @@ impl Timestamp {
 impl DateTime for Date {
     #[inline]
     fn year(&self) -> Option<i32> {
-        self.date().year()
+        Date::date(*self).year()
     }
 
     #[inline]
     fn month(&self) -> Option<i32> {
-        self.date().month()
+        Date::date(*self).month()
     }
 
     #[inline]
     fn day(&self) -> Option<i32> {
-        self.date().day()
+        Date::date(*self).day()
     }
 
     #[inline]
@@ -209,6 +209,11 @@ impl DateTime for Date {
     #[inline]
     fn second(&self) -> Option<f64> {
         self.time().second()
+    }
+
+    #[inline]
+    fn date(&self) -> Option<SqlDate> {
+        Some(Date::date(*self))
     }
 }
 
@@ -250,9 +255,7 @@ impl From<Date> for NaiveDateTime {
             sec,
             usec,
             ampm: None,
-            is_interval: false,
             negate: false,
-            date: Some(date),
         }
     }
 }
@@ -266,7 +269,14 @@ impl TryFrom<NaiveDateTime> for Date {
     }
 }
 
-impl DateTimeFormat for Date {}
+impl DateTimeFormat for Date {
+    const NAME: &'static str = "date";
+    const HAS_DATE: bool = true;
+    const HAS_TIME: bool = true;
+    const HAS_FRACTION: bool = false;
+    const IS_INTERVAL_YM: bool = false;
+    const IS_INTERVAL_DT: bool = false;
+}
 
 impl PartialEq<Date> for Timestamp {
     #[inline]
@@ -564,14 +574,14 @@ mod tests {
                 let fmt = format!("{}", date.format("yyyy-MONTH-dd hh:mi:ss").unwrap());
                 assert_eq!(fmt, "2000-JANUARY-01 12:00:00");
 
-                let fmt = format!("{}", date.format("yyyy-Mon-dd hh:mi:ss.ff1").unwrap());
-                assert_eq!(fmt, "2000-Jan-01 12:00:00.0");
+                let fmt = format!("{}", date.format("yyyy-Mon-dd hh:mi:ss").unwrap());
+                assert_eq!(fmt, "2000-Jan-01 12:00:00");
 
-                let fmt = format!("{}", date.format("Day yyyy-Mon-dd hh:mi:ss.ff1").unwrap());
-                assert_eq!(fmt, "Saturday 2000-Jan-01 12:00:00.0");
+                let fmt = format!("{}", date.format("Day yyyy-Mon-dd hh:mi:ss").unwrap());
+                assert_eq!(fmt, "Saturday 2000-Jan-01 12:00:00");
 
-                let fmt = format!("{}", date.format("yyyyMMdd hh24miss.ff1").unwrap());
-                assert_eq!(fmt, "20000101 000000.0");
+                let fmt = format!("{}", date.format("yyyyMMdd hh24miss").unwrap());
+                assert_eq!(fmt, "20000101 000000");
 
                 let date = generate_date(2001, 1, 2, 3, 4, 5);
                 assert_eq!(
@@ -649,6 +659,10 @@ mod tests {
 
                 assert!(
                     Date::parse("2021-04-23 03:04:05 thur", "yyyy-mm-dd hh24:mi:ss dy",).is_err()
+                );
+
+                assert!(
+                    Date::parse("2021-04-22 03:04:05.12345", "yyyy-mm-dd hh24:mi:ss.ff",).is_err()
                 );
 
                 assert!(Date::parse("2021423 03:04:05", "yyyymmdd hh24:mi:ss",).is_err());

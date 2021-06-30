@@ -102,7 +102,9 @@ pub const DAY_NAME_TABLE: [[&str; 7]; 6] = [
     ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
 ];
 
-pub trait DateTimeFormat {
+pub trait DateTimeFormat:
+    DateTime + Into<NaiveDateTime> + Copy + TryFrom<NaiveDateTime, Error = Error>
+{
     const YEAR_MAX_LENGTH: usize = 4;
 
     const MONTH_MAX_LENGTH: usize = 2;
@@ -114,20 +116,66 @@ pub trait DateTimeFormat {
     const MINUTE_MAX_LENGTH: usize = 2;
 
     const SECOND_MAX_LENGTH: usize = 2;
+
+    const NAME: &'static str;
+
+    const HAS_DATE: bool;
+    const HAS_TIME: bool;
+    const HAS_FRACTION: bool;
+    const IS_INTERVAL_YM: bool;
+    const IS_INTERVAL_DT: bool;
 }
 
-impl DateTimeFormat for Date {}
+impl DateTimeFormat for Date {
+    const NAME: &'static str = "date";
 
-impl DateTimeFormat for Time {}
+    const HAS_DATE: bool = true;
+    const HAS_TIME: bool = false;
+    const HAS_FRACTION: bool = false;
+    const IS_INTERVAL_YM: bool = false;
+    const IS_INTERVAL_DT: bool = false;
+}
 
-impl DateTimeFormat for Timestamp {}
+impl DateTimeFormat for Time {
+    const NAME: &'static str = "time";
+
+    const HAS_DATE: bool = false;
+    const HAS_TIME: bool = true;
+    const HAS_FRACTION: bool = true;
+    const IS_INTERVAL_YM: bool = false;
+    const IS_INTERVAL_DT: bool = false;
+}
+
+impl DateTimeFormat for Timestamp {
+    const NAME: &'static str = "timestamp";
+
+    const HAS_DATE: bool = true;
+    const HAS_TIME: bool = true;
+    const HAS_FRACTION: bool = true;
+    const IS_INTERVAL_YM: bool = false;
+    const IS_INTERVAL_DT: bool = false;
+}
 
 impl DateTimeFormat for IntervalYM {
     const YEAR_MAX_LENGTH: usize = 9;
+
+    const NAME: &'static str = "interval year to month";
+
+    const HAS_DATE: bool = false;
+    const HAS_TIME: bool = false;
+    const HAS_FRACTION: bool = false;
+    const IS_INTERVAL_YM: bool = true;
+    const IS_INTERVAL_DT: bool = false;
 }
 
 impl DateTimeFormat for IntervalDT {
     const DAY_MAX_LENGTH: usize = 9;
+    const NAME: &'static str = "interval day to second";
+    const HAS_DATE: bool = false;
+    const HAS_TIME: bool = true;
+    const HAS_FRACTION: bool = true;
+    const IS_INTERVAL_YM: bool = false;
+    const IS_INTERVAL_DT: bool = true;
 }
 
 #[derive(Debug)]
@@ -142,13 +190,7 @@ pub struct NaiveDateTime {
 
     // for Timestamp parsing
     pub ampm: Option<AmPm>,
-
-    // for interval
-    pub is_interval: bool,
     pub negate: bool,
-
-    // for date and timestamp
-    pub date: Option<Date>,
 }
 
 impl NaiveDateTime {
@@ -163,9 +205,7 @@ impl NaiveDateTime {
             sec: 0,
             usec: 0,
             ampm: None,
-            is_interval: false,
             negate: false,
-            date: None,
         }
     }
 
@@ -220,11 +260,6 @@ impl NaiveDateTime {
     }
 
     #[inline]
-    pub const fn is_interval(&self) -> bool {
-        self.is_interval
-    }
-
-    #[inline]
     pub const fn negate(&self) -> bool {
         self.negate
     }
@@ -259,8 +294,8 @@ impl NaiveDateTime {
     }
 
     #[inline]
-    pub fn week_day_name(&self, style: NameStyle) -> Result<&str> {
-        if let Some(d) = self.date {
+    pub fn week_day_name(&self, date: Option<Date>, style: NameStyle) -> Result<&str> {
+        if let Some(d) = date {
             Ok(d.day_of_week().name(style))
         } else {
             Ok(Date::try_from_ymd(self.year, self.month, self.day)?
@@ -793,15 +828,13 @@ impl Formatter {
 
     /// Formats datetime types
     #[inline]
-    pub fn format<W: fmt::Write, T: Into<NaiveDateTime>>(
-        &self,
-        datetime: T,
-        mut w: W,
-    ) -> Result<()> {
+    pub fn format<W: fmt::Write, T: DateTimeFormat>(&self, datetime: T, mut w: W) -> Result<()> {
         let dt = datetime.into();
         if dt.negate() {
             // negate interval
             w.write_char('-')?;
+        } else if T::IS_INTERVAL_YM || T::IS_INTERVAL_DT {
+            w.write_char('+')?;
         }
 
         for field in self.fields.iter() {
@@ -816,27 +849,117 @@ impl Formatter {
                 Field::Dot => w.write_char('.')?,
                 Field::Semicolon => w.write_char(';')?,
                 Field::T => w.write_char('T')?,
-                Field::Year(n) => write!(w, "{:<0width$}", dt.year(), width = *n as usize)?,
-                Field::Month => write!(w, "{:02}", dt.month())?,
-                Field::Day => write!(w, "{:02}", dt.day())?,
-                Field::Hour24 => write!(w, "{:02}", dt.hour24())?,
-                Field::Hour12 => {
-                    let hour = if dt.is_interval() {
-                        dt.hour24()
+                Field::Year(n) => {
+                    if T::HAS_DATE || T::IS_INTERVAL_YM {
+                        write!(w, "{:<0width$}", dt.year(), width = *n as usize)?
                     } else {
-                        dt.hour12()
-                    };
-                    write!(w, "{:02}", hour)?
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
                 }
-                Field::Minute => write!(w, "{:02}", dt.minute())?,
-                Field::Second => write!(w, "{:02}", dt.sec())?,
+                Field::Month => {
+                    if T::HAS_DATE || T::IS_INTERVAL_YM {
+                        write!(w, "{:02}", dt.month())?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::Day => {
+                    if T::HAS_DATE || T::IS_INTERVAL_DT {
+                        write!(w, "{:02}", dt.day())?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::Hour24 => {
+                    if T::HAS_TIME {
+                        write!(w, "{:02}", dt.hour24())?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::Hour12 => {
+                    if T::HAS_TIME && !T::IS_INTERVAL_DT {
+                        write!(w, "{:02}", dt.hour12())?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::Minute => {
+                    if T::HAS_TIME {
+                        write!(w, "{:02}", dt.minute())?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::Second => {
+                    if T::HAS_TIME {
+                        write!(w, "{:02}", dt.sec())?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
                 Field::Fraction(p) => {
-                    let p = p.unwrap_or(6);
-                    write!(w, "{:<0width$}", dt.fraction(p), width = p as usize)?
+                    if T::HAS_FRACTION {
+                        let p = p.unwrap_or(6);
+                        write!(w, "{:<0width$}", dt.fraction(p), width = p as usize)?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
                 }
-                Field::AmPm(am_pm) => write!(w, "{}", am_pm.format(dt.hour24()))?,
-                Field::MonthName(style) => write!(w, "{}", dt.month_name(*style))?,
-                Field::DayName(style) => write!(w, "{}", dt.week_day_name(*style)?)?,
+                Field::AmPm(am_pm) => {
+                    if T::HAS_TIME && !T::IS_INTERVAL_DT {
+                        write!(w, "{}", am_pm.format(dt.hour24()))?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::MonthName(style) => {
+                    if T::HAS_DATE {
+                        write!(w, "{}", dt.month_name(*style))?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
+                Field::DayName(style) => {
+                    if T::HAS_DATE {
+                        write!(w, "{}", dt.week_day_name(datetime.date(), *style)?)?
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
+                }
             }
         }
 
@@ -845,13 +968,7 @@ impl Formatter {
 
     /// Parses datetime types
     #[inline]
-    pub fn parse<
-        S: AsRef<str>,
-        T: TryFrom<NaiveDateTime, Error = Error> + DateTime + DateTimeFormat,
-    >(
-        &self,
-        input: S,
-    ) -> Result<T> {
+    pub fn parse<S: AsRef<str>, T: DateTimeFormat>(&self, input: S) -> Result<T> {
         let mut s = input.as_ref().as_bytes();
 
         let mut dt = NaiveDateTime::new();
@@ -902,7 +1019,9 @@ impl Formatter {
         let mut is_year_set = false;
         let mut is_month_set = false;
         let mut is_day_set = false;
-        let mut is_hour_set = false;
+        // If hour is not set, then is_hour24_set is None.
+        // If it is set in hour24, then Some(true), else if in hour12, then Some(false)
+        let mut is_hour24_set: Option<bool> = None;
         let mut is_min_set = false;
         let mut is_sec_set = false;
         let mut is_fraction_set = false;
@@ -923,131 +1042,216 @@ impl Formatter {
                 Field::Semicolon => expect_char!(b';'),
                 Field::T => expect_char!(b'T'),
                 Field::Year(n) => {
-                    if is_year_set {
-                        return Err(Error::ParseError(
-                            "format code (year) appears twice".to_string(),
-                        ));
-                    }
-                    let len = if T::YEAR_MAX_LENGTH > 4 {
-                        T::YEAR_MAX_LENGTH
+                    if T::HAS_DATE || T::IS_INTERVAL_YM {
+                        if is_year_set {
+                            return Err(Error::ParseError(
+                                "format code (year) appears twice".to_string(),
+                            ));
+                        }
+                        let len = if T::YEAR_MAX_LENGTH > 4 {
+                            T::YEAR_MAX_LENGTH
+                        } else {
+                            *n as usize
+                        };
+                        let (year, negate) = expect_number!(len);
+                        dt.year = year;
+                        dt.negate = negate;
+                        is_year_set = true;
                     } else {
-                        *n as usize
-                    };
-                    let (year, negate) = expect_number!(len);
-                    dt.year = year;
-                    dt.negate = negate;
-                    is_year_set = true;
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
                 }
                 Field::Month => {
-                    if is_month_set {
-                        return Err(Error::ParseError(
-                            "format code (month) appears twice".to_string(),
-                        ));
+                    if T::HAS_DATE || T::IS_INTERVAL_YM {
+                        if is_month_set {
+                            return Err(Error::ParseError(
+                                "format code (month) appears twice".to_string(),
+                            ));
+                        }
+                        let (month, _) = expect_number!(T::MONTH_MAX_LENGTH);
+                        dt.month = month as u32;
+                        is_month_set = true;
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-                    let (month, _) = expect_number!(T::MONTH_MAX_LENGTH);
-                    dt.month = month as u32;
-                    is_month_set = true;
                 }
                 Field::Day => {
-                    if is_day_set {
-                        return Err(Error::ParseError(
-                            "format code (day) appears twice".to_string(),
-                        ));
+                    if T::HAS_DATE || T::IS_INTERVAL_DT {
+                        if is_day_set {
+                            return Err(Error::ParseError(
+                                "format code (day) appears twice".to_string(),
+                            ));
+                        }
+                        let (day, negate) = expect_number!(T::DAY_MAX_LENGTH);
+                        dt.day = day.abs() as u32;
+                        dt.negate = negate;
+                        is_day_set = true;
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-                    let (day, negate) = expect_number!(T::DAY_MAX_LENGTH);
-                    dt.day = day.abs() as u32;
-                    dt.negate = negate;
-                    is_day_set = true;
                 }
                 Field::Hour24 => {
-                    // todo hh24 excludes hh12 and amp
-                    if is_hour_set {
-                        return Err(Error::ParseError(
-                            "format code (hour) appears twice".to_string(),
-                        ));
+                    if T::HAS_TIME {
+                        if is_hour24_set.is_some() {
+                            return Err(Error::ParseError(
+                                "format code (hour) appears twice".to_string(),
+                            ));
+                        }
+                        if dt.ampm.is_some() {
+                            return Err(Error::ParseError(
+                                "'HH24' precludes use of meridian indicator".to_string(),
+                            ));
+                        }
+                        let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        dt.hour = hour as u32;
+                        is_hour24_set = Some(true);
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-
-                    let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
-                    dt.hour = hour as u32;
-                    is_hour_set = true;
                 }
                 Field::Hour12 => {
-                    if is_hour_set {
-                        return Err(Error::ParseError(
-                            "format code (hour) appears twice".to_string(),
-                        ));
+                    if T::HAS_TIME && !T::IS_INTERVAL_DT {
+                        if is_hour24_set.is_some() {
+                            return Err(Error::ParseError(
+                                "format code (hour) appears twice".to_string(),
+                            ));
+                        }
+                        let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        dt.hour = hour as u32;
+                        dt.adjust_hour12();
+                        is_hour24_set = Some(false);
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-                    let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
-                    dt.hour = hour as u32;
-                    dt.adjust_hour12();
-                    is_hour_set = true;
                 }
                 Field::Minute => {
-                    if is_min_set {
-                        return Err(Error::ParseError(
-                            "format code (minute) appears twice".to_string(),
-                        ));
+                    if T::HAS_TIME {
+                        if is_min_set {
+                            return Err(Error::ParseError(
+                                "format code (minute) appears twice".to_string(),
+                            ));
+                        }
+                        let (minute, _) = expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0);
+                        dt.minute = minute as u32;
+                        is_min_set = true;
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-                    let (minute, _) = expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0);
-                    dt.minute = minute as u32;
-                    is_min_set = true;
                 }
                 Field::Second => {
-                    if is_sec_set {
-                        return Err(Error::ParseError(
-                            "format code (second) appears twice".to_string(),
-                        ));
+                    if T::HAS_TIME {
+                        if is_sec_set {
+                            return Err(Error::ParseError(
+                                "format code (second) appears twice".to_string(),
+                            ));
+                        }
+                        let (sec, _) = expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0);
+                        dt.sec = sec as u32;
+                        is_sec_set = true;
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-                    let (sec, _) = expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0);
-                    dt.sec = sec as u32;
-                    is_sec_set = true;
                 }
                 Field::Fraction(p) => {
-                    if is_fraction_set {
-                        return Err(Error::ParseError(
-                            "format code (fraction) appears twice".to_string(),
-                        ));
+                    if T::HAS_FRACTION {
+                        if is_fraction_set {
+                            return Err(Error::ParseError(
+                                "format code (fraction) appears twice".to_string(),
+                            ));
+                        }
+                        // When parsing, if FF is given, the default precision is 9
+                        let (usec, rem) = parse_fraction(s, p.unwrap_or(9) as usize)?;
+                        s = rem;
+                        dt.usec = usec;
+                        is_fraction_set = true;
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
                     }
-                    // When parsing, if FF is given, the default precision is 9
-                    let (usec, rem) = parse_fraction(s, p.unwrap_or(9) as usize)?;
-                    s = rem;
-                    dt.usec = usec;
-                    is_fraction_set = true;
                 }
                 Field::AmPm(_) => {
-                    if dt.ampm.is_some() {
-                        return Err(Error::ParseError(
-                            "format code (am/pm) appears twice".to_string(),
-                        ));
-                    }
-                    let (am_pm, rem) = parse_ampm(s)?;
-                    s = rem;
+                    if T::HAS_TIME && !T::IS_INTERVAL_DT {
+                        if dt.ampm.is_some() {
+                            return Err(Error::ParseError(
+                                "format code (am/pm) appears twice".to_string(),
+                            ));
+                        }
+                        if let Some(true) = is_hour24_set {
+                            return Err(Error::ParseError(
+                                "'HH24' precludes use of meridian indicator".to_string(),
+                            ));
+                        }
+                        let (am_pm, rem) = parse_ampm(s)?;
+                        s = rem;
 
-                    dt.ampm = Some(am_pm);
-                    dt.adjust_hour12();
+                        dt.ampm = Some(am_pm);
+                        dt.adjust_hour12();
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
                 }
                 Field::MonthName(_) => {
-                    if is_month_set {
-                        return Err(Error::ParseError(
-                            "format code (month) appears twice".to_string(),
-                        ));
-                    }
-                    let (month, rem) = parse_month_name(s)?;
-                    s = rem;
+                    if T::HAS_DATE {
+                        if is_month_set {
+                            return Err(Error::ParseError(
+                                "format code (month) appears twice".to_string(),
+                            ));
+                        }
+                        let (month, rem) = parse_month_name(s)?;
+                        s = rem;
 
-                    dt.month = month as u32;
-                    is_month_set = true;
+                        dt.month = month as u32;
+                        is_month_set = true;
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
                 }
                 Field::DayName(_) => {
-                    if dow.is_some() {
-                        return Err(Error::ParseError(
-                            "format code (day of week) appears twice".to_string(),
-                        ));
-                    }
-                    let (d, rem) = parse_week_day_name(s)?;
-                    s = rem;
+                    if T::HAS_DATE {
+                        if dow.is_some() {
+                            return Err(Error::ParseError(
+                                "format code (day of week) appears twice".to_string(),
+                            ));
+                        }
+                        let (d, rem) = parse_week_day_name(s)?;
+                        s = rem;
 
-                    dow = Some(d);
+                        dow = Some(d);
+                    } else {
+                        return Err(Error::FormatError(format!(
+                            "{} format not recognized",
+                            T::NAME
+                        )));
+                    }
                 }
             }
         }
@@ -1176,19 +1380,19 @@ fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
     Err(Error::ParseError("week day is missing".to_string()))
 }
 
-pub struct LazyFormat<T: Into<NaiveDateTime>> {
+pub struct LazyFormat<T: DateTimeFormat> {
     fmt: Formatter,
     dt: T,
 }
 
-impl<T: Into<NaiveDateTime>> LazyFormat<T> {
+impl<T: DateTimeFormat> LazyFormat<T> {
     #[inline]
     pub fn new(fmt: Formatter, dt: T) -> Self {
         LazyFormat { fmt, dt }
     }
 }
 
-impl<T: Into<NaiveDateTime> + Copy> fmt::Display for LazyFormat<T> {
+impl<T: DateTimeFormat> fmt::Display for LazyFormat<T> {
     #[inline]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         self.fmt.format(self.dt, f).map_err(|_| fmt::Error)
