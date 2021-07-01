@@ -270,7 +270,6 @@ impl TryFrom<NaiveDateTime> for Date {
 }
 
 impl DateTimeFormat for Date {
-    const NAME: &'static str = "date";
     const HAS_DATE: bool = true;
     const HAS_TIME: bool = true;
     const HAS_FRACTION: bool = false;

@@ -517,6 +517,9 @@ mod tests {
                 assert_eq!(format!("{}", ts.format("hh").unwrap()), "07");
                 assert_eq!(format!("{}", ts.format("ss").unwrap()), "09");
                 assert_eq!(format!("{}", ts.format("FF").unwrap()), "000010");
+                assert_eq!(format!("{}", ts.format("y").unwrap()), "4");
+                assert_eq!(format!("{}", ts.format("yy").unwrap()), "34");
+                assert_eq!(format!("{}", ts.format("yyy").unwrap()), "234");
 
                 let ts = generate_ts(1970, 1, 1, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "thursday");

@@ -9,11 +9,13 @@ use stack_buf::StackVec;
 use std::convert::TryFrom;
 use std::fmt;
 
-const MAX_FIELDS: usize = 32;
+const MAX_FIELDS: usize = 36;
 
 const FRACTION_FACTOR: [f64; 10] = [
     1000000.0, 100000.0, 10000.0, 1000.0, 100.0, 10.0, 1.0, 0.1, 0.01, 0.001,
 ];
+
+const YEAR_MODIFIER: [u32; 4] = [10, 100, 1000, 10000];
 
 pub const MONTH_NAME_TABLE: [[&str; 12]; 6] = [
     [
@@ -117,8 +119,6 @@ pub trait DateTimeFormat:
 
     const SECOND_MAX_LENGTH: usize = 2;
 
-    const NAME: &'static str;
-
     const HAS_DATE: bool;
     const HAS_TIME: bool;
     const HAS_FRACTION: bool;
@@ -127,8 +127,6 @@ pub trait DateTimeFormat:
 }
 
 impl DateTimeFormat for Date {
-    const NAME: &'static str = "date";
-
     const HAS_DATE: bool = true;
     const HAS_TIME: bool = false;
     const HAS_FRACTION: bool = false;
@@ -137,8 +135,6 @@ impl DateTimeFormat for Date {
 }
 
 impl DateTimeFormat for Time {
-    const NAME: &'static str = "time";
-
     const HAS_DATE: bool = false;
     const HAS_TIME: bool = true;
     const HAS_FRACTION: bool = true;
@@ -147,8 +143,6 @@ impl DateTimeFormat for Time {
 }
 
 impl DateTimeFormat for Timestamp {
-    const NAME: &'static str = "timestamp";
-
     const HAS_DATE: bool = true;
     const HAS_TIME: bool = true;
     const HAS_FRACTION: bool = true;
@@ -159,8 +153,6 @@ impl DateTimeFormat for Timestamp {
 impl DateTimeFormat for IntervalYM {
     const YEAR_MAX_LENGTH: usize = 9;
 
-    const NAME: &'static str = "interval year to month";
-
     const HAS_DATE: bool = false;
     const HAS_TIME: bool = false;
     const HAS_FRACTION: bool = false;
@@ -170,7 +162,6 @@ impl DateTimeFormat for IntervalYM {
 
 impl DateTimeFormat for IntervalDT {
     const DAY_MAX_LENGTH: usize = 9;
-    const NAME: &'static str = "interval day to second";
     const HAS_DATE: bool = false;
     const HAS_TIME: bool = true;
     const HAS_FRACTION: bool = true;
@@ -323,7 +314,7 @@ impl Month {
 pub enum Field {
     Invalid,
     /// ' '
-    Blank,
+    Blank(u8),
     /// '-'
     Hyphen,
     /// ':'
@@ -474,6 +465,13 @@ impl<'a> FormatParser<'a> {
         } else {
             None
         }
+    }
+
+    #[inline]
+    fn punctuation_count(&mut self, expect: u8) -> u8 {
+        self.remain().map_or(0, |rem| {
+            rem.iter().take_while(|&y| y.eq(&expect)).count() as u8
+        })
     }
 
     #[inline]
@@ -720,7 +718,11 @@ impl<'a> FormatParser<'a> {
         match self.pop() {
             Some(char) => {
                 let field = match char {
-                    b' ' => Field::Blank,
+                    b' ' => {
+                        let len = self.punctuation_count(b' ');
+                        self.advance(len as usize);
+                        Field::Blank(len + 1)
+                    }
                     b'-' => Field::Hyphen,
                     b':' => Field::Colon,
                     b'/' => Field::Slash,
@@ -814,10 +816,9 @@ impl Formatter {
             }
 
             if fields.is_full() {
-                return Err(Error::InvalidFormat(format!(
-                    "format `{}` is too long",
-                    fmt.as_ref()
-                )));
+                return Err(Error::InvalidFormat(
+                    "date format is too long for internal buffer".to_string(),
+                ));
             }
 
             fields.push(field);
@@ -840,7 +841,11 @@ impl Formatter {
         for field in self.fields.iter() {
             match field {
                 Field::Invalid => unreachable!(),
-                Field::Blank => w.write_char(' ')?,
+                Field::Blank(n) => {
+                    for _ in 0..*n {
+                        w.write_char(' ')?
+                    }
+                }
                 Field::Hyphen => w.write_char('-')?,
                 Field::Colon => w.write_char(':')?,
                 Field::Slash => w.write_char('/')?,
@@ -850,73 +855,55 @@ impl Formatter {
                 Field::Semicolon => w.write_char(';')?,
                 Field::T => w.write_char('T')?,
                 Field::Year(n) => {
-                    if T::HAS_DATE || T::IS_INTERVAL_YM {
-                        write!(w, "{:<0width$}", dt.year(), width = *n as usize)?
+                    let year = if T::HAS_DATE {
+                        dt.year() % (YEAR_MODIFIER[*n as usize - 1] as i32)
+                    } else if T::IS_INTERVAL_YM {
+                        dt.year()
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
-                    }
+                        return Err(Error::FormatError("date format not recognized".to_string()));
+                    };
+                    write!(w, "{:<0width$}", year, width = *n as usize)?;
                 }
                 Field::Month => {
                     if T::HAS_DATE || T::IS_INTERVAL_YM {
                         write!(w, "{:02}", dt.month())?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Day => {
                     if T::HAS_DATE || T::IS_INTERVAL_DT {
                         write!(w, "{:02}", dt.day())?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour24 => {
                     if T::HAS_TIME {
                         write!(w, "{:02}", dt.hour24())?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour12 => {
                     if T::HAS_TIME && !T::IS_INTERVAL_DT {
                         write!(w, "{:02}", dt.hour12())?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Minute => {
                     if T::HAS_TIME {
                         write!(w, "{:02}", dt.minute())?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Second => {
                     if T::HAS_TIME {
                         write!(w, "{:02}", dt.sec())?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Fraction(p) => {
@@ -924,40 +911,28 @@ impl Formatter {
                         let p = p.unwrap_or(6);
                         write!(w, "{:<0width$}", dt.fraction(p), width = p as usize)?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::AmPm(am_pm) => {
                     if T::HAS_TIME && !T::IS_INTERVAL_DT {
                         write!(w, "{}", am_pm.format(dt.hour24()))?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::MonthName(style) => {
                     if T::HAS_DATE {
                         write!(w, "{}", dt.month_name(*style))?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::DayName(style) => {
                     if T::HAS_DATE {
                         write!(w, "{}", dt.week_day_name(datetime.date(), *style)?)?
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
             }
@@ -1032,7 +1007,11 @@ impl Formatter {
             match field {
                 // todo ignore the absence of symbols; Format exact
                 Field::Invalid => unreachable!(),
-                Field::Blank => expect_char_with_tolerence!(b' '),
+                Field::Blank(n) => {
+                    for _ in 0..*n {
+                        expect_char_with_tolerence!(b' ')
+                    }
+                }
                 Field::Hyphen => expect_char!(b'-'),
                 Field::Colon => expect_char_with_tolerence!(b':'),
                 Field::Slash => expect_char!(b'/'),
@@ -1058,10 +1037,7 @@ impl Formatter {
                         dt.negate = negate;
                         is_year_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Month => {
@@ -1075,10 +1051,7 @@ impl Formatter {
                         dt.month = month as u32;
                         is_month_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Day => {
@@ -1093,10 +1066,7 @@ impl Formatter {
                         dt.negate = negate;
                         is_day_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour24 => {
@@ -1115,10 +1085,7 @@ impl Formatter {
                         dt.hour = hour as u32;
                         is_hour24_set = Some(true);
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour12 => {
@@ -1133,10 +1100,7 @@ impl Formatter {
                         dt.adjust_hour12();
                         is_hour24_set = Some(false);
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Minute => {
@@ -1150,10 +1114,7 @@ impl Formatter {
                         dt.minute = minute as u32;
                         is_min_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Second => {
@@ -1167,10 +1128,7 @@ impl Formatter {
                         dt.sec = sec as u32;
                         is_sec_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Fraction(p) => {
@@ -1186,10 +1144,7 @@ impl Formatter {
                         dt.usec = usec;
                         is_fraction_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::AmPm(_) => {
@@ -1210,10 +1165,7 @@ impl Formatter {
                         dt.ampm = Some(am_pm);
                         dt.adjust_hour12();
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::MonthName(_) => {
@@ -1229,10 +1181,7 @@ impl Formatter {
                         dt.month = month as u32;
                         is_month_set = true;
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::DayName(_) => {
@@ -1247,10 +1196,7 @@ impl Formatter {
 
                         dow = Some(d);
                     } else {
-                        return Err(Error::FormatError(format!(
-                            "{} format not recognized",
-                            T::NAME
-                        )));
+                        return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
             }
@@ -1415,7 +1361,7 @@ mod tests {
         assert_eq!(parser.next(), Some(Field::Month));
         assert_eq!(parser.next(), Some(Field::Hyphen));
         assert_eq!(parser.next(), Some(Field::Day));
-        assert_eq!(parser.next(), Some(Field::Blank));
+        assert_eq!(parser.next(), Some(Field::Blank(1)));
         assert_eq!(parser.next(), Some(Field::Hour24));
         assert_eq!(parser.next(), Some(Field::Colon));
         assert_eq!(parser.next(), Some(Field::Minute));
@@ -1429,45 +1375,53 @@ mod tests {
     #[test]
     fn test_format_parser_param() {
         let mut parser = FormatParser::new(
-            b"MONTH Month month MON mon Mon DAY day Day DY Dy dy AM am A.M. a.m.",
+            b"MONTH  Month    month MON mon Mon DAY day Day DY Dy dy AM am A.M. a.m.",
         );
 
         let expect = [
             MonthName(Upper),
-            Blank,
+            Blank(2),
             MonthName(Capital),
-            Blank,
+            Blank(4),
             MonthName(Lower),
-            Blank,
+            Blank(1),
             MonthName(AbbrUpper),
-            Blank,
+            Blank(1),
             MonthName(AbbrLower),
-            Blank,
+            Blank(1),
             MonthName(AbbrCapital),
-            Blank,
+            Blank(1),
             DayName(Upper),
-            Blank,
+            Blank(1),
             DayName(Lower),
-            Blank,
+            Blank(1),
             DayName(Capital),
-            Blank,
+            Blank(1),
             DayName(AbbrUpper),
-            Blank,
+            Blank(1),
             DayName(AbbrCapital),
-            Blank,
+            Blank(1),
             DayName(AbbrLower),
-            Blank,
+            Blank(1),
             AmPm(AmUpper),
-            Blank,
+            Blank(1),
             AmPm(AmLower),
-            Blank,
+            Blank(1),
             AmPm(UpperDot),
-            Blank,
+            Blank(1),
             AmPm(LowerDot),
         ];
         for e in expect.iter() {
             assert_eq!(e, &parser.next().unwrap())
         }
         assert_eq!(None, parser.next())
+    }
+
+    #[test]
+    fn test_formatter() {
+        assert!(Formatter::try_new(
+            "                                                             "
+        )
+        .is_ok());
     }
 }
