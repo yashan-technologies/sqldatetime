@@ -1037,7 +1037,7 @@ impl Formatter {
                         dt.negate = negate;
                         is_year_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Month => {
@@ -1051,7 +1051,7 @@ impl Formatter {
                         dt.month = month as u32;
                         is_month_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Day => {
@@ -1066,7 +1066,7 @@ impl Formatter {
                         dt.negate = negate;
                         is_day_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour24 => {
@@ -1085,7 +1085,7 @@ impl Formatter {
                         dt.hour = hour as u32;
                         is_hour24_set = Some(true);
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour12 => {
@@ -1100,7 +1100,7 @@ impl Formatter {
                         dt.adjust_hour12();
                         is_hour24_set = Some(false);
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Minute => {
@@ -1114,7 +1114,7 @@ impl Formatter {
                         dt.minute = minute as u32;
                         is_min_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Second => {
@@ -1128,7 +1128,7 @@ impl Formatter {
                         dt.sec = sec as u32;
                         is_sec_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::Fraction(p) => {
@@ -1144,7 +1144,7 @@ impl Formatter {
                         dt.usec = usec;
                         is_fraction_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::AmPm(_) => {
@@ -1165,7 +1165,7 @@ impl Formatter {
                         dt.ampm = Some(am_pm);
                         dt.adjust_hour12();
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::MonthName(_) => {
@@ -1181,7 +1181,7 @@ impl Formatter {
                         dt.month = month as u32;
                         is_month_set = true;
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
                 Field::DayName(_) => {
@@ -1196,7 +1196,7 @@ impl Formatter {
 
                         dow = Some(d);
                     } else {
-                        return Err(Error::FormatError("date format not recognized".to_string()));
+                        return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
             }
