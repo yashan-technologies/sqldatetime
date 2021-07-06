@@ -285,6 +285,7 @@ impl DateTime for Timestamp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Datelike, Local};
 
     fn generate_ts(
         year: i32,
@@ -460,19 +461,76 @@ mod tests {
 
             // Default
             {
-                let ts = generate_ts(1, 1, 1, 0, 0, 5, 0);
-                let ts2 = Timestamp::parse("5", "ss").unwrap();
-                assert_eq!(ts, ts2);
+                let now = Local::now().naive_local();
+                let year = now.year();
+                let month = now.month();
 
-                let ts = generate_ts(1, 1, 1, 0, 0, 0, 0);
-                let ts2 = Timestamp::parse("", "").unwrap();
-                assert_eq!(ts, ts2);
+                let timestamp = generate_ts(year, month, 1, 0, 0, 5, 0);
+                let ts = Timestamp::parse("5", "ss").unwrap();
+                assert_eq!(timestamp, ts);
 
-                let ts2 = Timestamp::parse("jan", "MONTH").unwrap();
-                assert_eq!(ts, ts2);
+                let timestamp = generate_ts(year, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("", "").unwrap();
+                assert_eq!(timestamp, ts);
 
-                let ts2 = Timestamp::parse("January", "mon").unwrap();
-                assert_eq!(ts, ts2)
+                let timestamp = generate_ts(year, 1, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("jan", "MONTH").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let ts = Timestamp::parse("January", "mon").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 10, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("0", "y").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 10 + 2, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("2", "y").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 100, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("0", "yy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 100 + 1, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("1", "yy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 100 + 12, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("12", "yy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(123, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("123", "yy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(1234, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("1234", "yy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 1000 + 1, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("1", "yyy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 1000 + 12, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("12", "yyy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 1000 + 12, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("012", "yyy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(year - year % 1000 + 123, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("123", "yyy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(2, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("2", "yyyy").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let timestamp = generate_ts(1234, month, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("1234", "yyyy").unwrap();
+                assert_eq!(timestamp, ts);
             }
 
             // Absence of time
@@ -520,6 +578,11 @@ mod tests {
                 assert_eq!(format!("{}", ts.format("y").unwrap()), "4");
                 assert_eq!(format!("{}", ts.format("yy").unwrap()), "34");
                 assert_eq!(format!("{}", ts.format("yyy").unwrap()), "234");
+
+                assert!(Timestamp::parse("1234", "yyy").is_err());
+                assert!(Timestamp::parse("1234", "y").is_err());
+                assert!(Timestamp::parse("123", "y").is_err());
+                assert!(Timestamp::parse("12", "y").is_err());
 
                 let ts = generate_ts(1970, 1, 1, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "thursday");
@@ -571,26 +634,30 @@ mod tests {
 
             // fraction rounding and etc
             {
+                let now = Local::now().naive_local();
+                let year = now.year();
+                let month = now.month();
+
                 assert_eq!(
                     Timestamp::parse(".12345", ".ff").unwrap(),
-                    generate_ts(1, 1, 1, 0, 0, 0, 123450)
+                    generate_ts(year, month, 1, 0, 0, 0, 123450)
                 );
                 assert_eq!(
                     Timestamp::parse(".123456789", ".ff").unwrap(),
-                    generate_ts(1, 1, 1, 0, 0, 0, 123457)
+                    generate_ts(year, month, 1, 0, 0, 0, 123457)
                 );
                 assert_eq!(
                     Timestamp::parse(".12345678", ".ff").unwrap(),
-                    generate_ts(1, 1, 1, 0, 0, 0, 123457)
+                    generate_ts(year, month, 1, 0, 0, 0, 123457)
                 );
                 assert_eq!(
                     Timestamp::parse(".1234567", ".ff7").unwrap(),
-                    generate_ts(1, 1, 1, 0, 0, 0, 123457)
+                    generate_ts(year, month, 1, 0, 0, 0, 123457)
                 );
                 assert!(Timestamp::parse(".12345678", ".ff7").is_err());
                 assert_eq!(
                     Timestamp::parse(".123456", ".ff6").unwrap(),
-                    generate_ts(1, 1, 1, 0, 0, 0, 123456)
+                    generate_ts(year, month, 1, 0, 0, 0, 123456)
                 );
                 assert!(Timestamp::parse(".123456789", ".ff2").is_err());
 
