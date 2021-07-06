@@ -182,7 +182,7 @@ pub struct NaiveDateTime {
 
     // for Timestamp parsing
     pub ampm: Option<AmPm>,
-    pub negate: bool,
+    pub negative: bool,
 }
 
 impl NaiveDateTime {
@@ -197,7 +197,7 @@ impl NaiveDateTime {
             sec: 0,
             usec: 0,
             ampm: None,
-            negate: false,
+            negative: false,
         }
     }
 
@@ -213,7 +213,7 @@ impl NaiveDateTime {
             sec: 0,
             usec: 0,
             ampm: None,
-            negate: false,
+            negative: false,
         }
     }
 
@@ -268,8 +268,8 @@ impl NaiveDateTime {
     }
 
     #[inline]
-    pub const fn negate(&self) -> bool {
-        self.negate
+    pub const fn negative(&self) -> bool {
+        self.negative
     }
 
     #[inline]
@@ -848,8 +848,8 @@ impl Formatter {
     #[inline]
     pub fn format<W: fmt::Write, T: DateTimeFormat>(&self, datetime: T, mut w: W) -> Result<()> {
         let dt = datetime.into();
-        if dt.negate() {
-            // negate interval
+        if dt.negative() {
+            // negative interval
             w.write_char('-')?;
         } else if T::IS_INTERVAL_YM || T::IS_INTERVAL_DT {
             w.write_char('+')?;
@@ -1053,8 +1053,13 @@ impl Formatter {
                         } else {
                             *n as usize
                         };
-                        let (negate, year, rem) = parse_year(s, len, dt.year)?;
-                        dt.negate = negate;
+                        let (negative, year, rem) = parse_year(s, len, dt.year)?;
+                        if negative && T::HAS_DATE {
+                            return Err(Error::ParseError(
+                                "(full) year must be between 1 and 9999".to_string(),
+                            ));
+                        }
+                        dt.negative = negative;
                         dt.year = year;
                         s = rem;
                         is_year_set = true;
@@ -1069,7 +1074,10 @@ impl Formatter {
                                 "format code (month) appears twice".to_string(),
                             ));
                         }
-                        let (month, _) = expect_number!(T::MONTH_MAX_LENGTH);
+                        let (month, negative) = expect_number!(T::MONTH_MAX_LENGTH);
+                        if negative {
+                            return Err(Error::ParseError("not a valid month".to_string()));
+                        }
                         dt.month = month as u32;
                         is_month_set = true;
                     } else {
@@ -1083,9 +1091,14 @@ impl Formatter {
                                 "format code (day) appears twice".to_string(),
                             ));
                         }
-                        let (day, negate) = expect_number!(T::DAY_MAX_LENGTH);
+                        let (day, negative) = expect_number!(T::DAY_MAX_LENGTH);
+                        if T::HAS_DATE && negative {
+                            return Err(Error::ParseError(
+                                "day of month must be between 1 and last day of month".to_string(),
+                            ));
+                        }
                         dt.day = day.abs() as u32;
-                        dt.negate = negate;
+                        dt.negative = negative;
                         is_day_set = true;
                     } else {
                         return Err(Error::ParseError("date format not recognized".to_string()));
@@ -1103,7 +1116,12 @@ impl Formatter {
                                 "'HH24' precludes use of meridian indicator".to_string(),
                             ));
                         }
-                        let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        let (hour, negative) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        if negative {
+                            return Err(Error::ParseError(
+                                "hour must be between 0 and 23".to_string(),
+                            ));
+                        }
                         dt.hour = hour as u32;
                         is_hour24_set = Some(true);
                     } else {
@@ -1117,7 +1135,12 @@ impl Formatter {
                                 "format code (hour) appears twice".to_string(),
                             ));
                         }
-                        let (hour, _) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        let (hour, negative) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        if negative {
+                            return Err(Error::ParseError(
+                                "hour must be between 1 and 12".to_string(),
+                            ));
+                        }
                         dt.hour = hour as u32;
                         dt.adjust_hour12();
                         is_hour24_set = Some(false);
@@ -1132,7 +1155,13 @@ impl Formatter {
                                 "format code (minute) appears twice".to_string(),
                             ));
                         }
-                        let (minute, _) = expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0);
+                        let (minute, negative) =
+                            expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0);
+                        if negative {
+                            return Err(Error::ParseError(
+                                "minutes must be between 0 and 59".to_string(),
+                            ));
+                        }
                         dt.minute = minute as u32;
                         is_min_set = true;
                     } else {
@@ -1146,7 +1175,13 @@ impl Formatter {
                                 "format code (second) appears twice".to_string(),
                             ));
                         }
-                        let (sec, _) = expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0);
+                        let (sec, negative) =
+                            expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0);
+                        if negative {
+                            return Err(Error::ParseError(
+                                "seconds must be between 0 and 59".to_string(),
+                            ));
+                        }
                         dt.sec = sec as u32;
                         is_sec_set = true;
                     } else {
@@ -1261,8 +1296,10 @@ fn parse_number(input: &[u8], max_len: usize) -> Result<(bool, i32, &[u8])> {
     };
 
     let (digits, s) = eat_digits(s, max_len);
-    if digits.is_empty() || digits.len() > 9 {
-        return Err(Error::ParseError("invalid number".to_string()));
+    if digits.is_empty() {
+        return Err(Error::ParseError(
+            "a non-numeric character was found where a numeric was expected".to_string(),
+        ));
     }
 
     let int = digits
@@ -1286,23 +1323,23 @@ fn eat_digits(s: &[u8], max_len: usize) -> (&[u8], &[u8]) {
 
 #[inline]
 fn parse_year(input: &[u8], max_len: usize, current_year: i32) -> Result<(bool, i32, &[u8])> {
-    // todo do not allow sign before y/yy/yyy
+    // todo do not allow sign element 's' before y/yy/yyy in the format string
     match max_len {
         2 => {
             let input_len = input.len();
-            let (negate, year, rem) = parse_number(input, 4)?;
+            let (negative, year, rem) = parse_number(input, 4)?;
             if input_len - rem.len() > 2 {
-                Ok((negate, year, rem))
+                Ok((negative, year, rem))
             } else {
                 let result_year = current_year - current_year % 100 + year;
-                Ok((negate, result_year, rem))
+                Ok((negative, result_year, rem))
             }
         }
         1 | 3 => {
-            let (negate, year, rem) = parse_number(input, max_len)?;
+            let (negative, year, rem) = parse_number(input, max_len)?;
             let result_year =
                 current_year - current_year % YEAR_MODIFIER[max_len - 1] as i32 + year;
-            Ok((negate, result_year, rem))
+            Ok((negative, result_year, rem))
         }
         _ => parse_number(input, max_len),
     }
@@ -1325,9 +1362,19 @@ fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
 
 #[inline]
 fn parse_fraction(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
-    if s.is_empty() {
-        return Ok((0, s));
+    match s.first() {
+        Some(ch) => {
+            if *ch == b'-' {
+                return Err(Error::ParseError(
+                    "the fractional seconds must be between 0 and 999999".to_string(),
+                ));
+            }
+        }
+        None => {
+            return Ok((0, s));
+        }
     }
+
     let (digits, s) = eat_digits(s, max_len);
     let int = digits
         .iter()

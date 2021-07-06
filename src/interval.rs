@@ -194,11 +194,11 @@ impl From<IntervalYM> for NaiveDateTime {
     #[inline]
     fn from(interval: IntervalYM) -> Self {
         let (sign, year, month) = interval.extract();
-        let negate = sign == Negative;
+        let negative = sign == Negative;
         NaiveDateTime {
             year: year as i32,
             month,
-            negate,
+            negative,
             ..NaiveDateTime::new()
         }
     }
@@ -209,7 +209,7 @@ impl TryFrom<NaiveDateTime> for IntervalYM {
 
     #[inline]
     fn try_from(dt: NaiveDateTime) -> Result<Self> {
-        if dt.negate {
+        if dt.negative {
             Ok(-IntervalYM::try_from_ym(-dt.year as u32, dt.month)?)
         } else {
             IntervalYM::try_from_ym(dt.year as u32, dt.month)
@@ -486,14 +486,14 @@ impl From<IntervalDT> for NaiveDateTime {
     #[inline]
     fn from(interval: IntervalDT) -> Self {
         let (sign, day, hour, minute, sec, usec) = interval.extract();
-        let negate = sign == Sign::Negative;
+        let negative = sign == Sign::Negative;
         NaiveDateTime {
             day,
             hour,
             minute,
             sec,
             usec,
-            negate,
+            negative,
             ..NaiveDateTime::new()
         }
     }
@@ -504,7 +504,7 @@ impl TryFrom<NaiveDateTime> for IntervalDT {
 
     #[inline]
     fn try_from(dt: NaiveDateTime) -> Result<Self> {
-        if dt.negate {
+        if dt.negative {
             Ok(IntervalDT::try_from_dhms(dt.day, dt.hour, dt.minute, dt.sec, dt.usec)?.negate())
         } else {
             IntervalDT::try_from_dhms(dt.day, dt.hour, dt.minute, dt.sec, dt.usec)

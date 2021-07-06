@@ -210,7 +210,7 @@ impl From<Timestamp> for NaiveDateTime {
             sec,
             usec,
             ampm: None,
-            negate: false,
+            negative: false,
         }
     }
 }
@@ -533,6 +533,13 @@ mod tests {
                 assert_eq!(timestamp, ts);
             }
 
+            // positive
+            {
+                let timestamp =
+                    Timestamp::parse("+2020-+11-+12 +11:+12:+13", "YYYY-MM-DD HH24:mi:ss").unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 12, 13, 0));
+            }
+
             // Absence of time
             {
                 let timestamp = Timestamp::parse("2020-11-12", "YYYY-MM-DD HH24:MI:SS").unwrap();
@@ -583,6 +590,16 @@ mod tests {
                 assert!(Timestamp::parse("1234", "y").is_err());
                 assert!(Timestamp::parse("123", "y").is_err());
                 assert!(Timestamp::parse("12", "y").is_err());
+
+                assert!(Timestamp::parse("-12", "yyyy").is_err());
+                assert!(Timestamp::parse("-12", "mm").is_err());
+                assert!(Timestamp::parse("-12", "dd").is_err());
+                assert!(Timestamp::parse("-12", "hh24").is_err());
+                assert!(Timestamp::parse("-1", "hh12").is_err());
+                assert!(Timestamp::parse("-123456", "ff").is_err());
+                assert!(Timestamp::parse("-12", "yyyy").is_err());
+                assert!(Timestamp::parse("-12", "mi").is_err());
+                assert!(Timestamp::parse("-12", "ss").is_err());
 
                 let ts = generate_ts(1970, 1, 1, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "thursday");
