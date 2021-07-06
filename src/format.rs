@@ -5,6 +5,7 @@ use crate::date::{Month, WeekDay};
 use crate::error::Result;
 use crate::format::NameStyle::{AbbrCapital, Capital};
 use crate::{Date, DateTime, Error, IntervalDT, IntervalYM, Time, Timestamp};
+use chrono::{Datelike, Local};
 use stack_buf::StackVec;
 use std::convert::TryFrom;
 use std::fmt;
@@ -190,6 +191,22 @@ impl NaiveDateTime {
         NaiveDateTime {
             year: DATE_MIN_YEAR,
             month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            sec: 0,
+            usec: 0,
+            ampm: None,
+            negate: false,
+        }
+    }
+
+    #[inline]
+    fn now() -> Self {
+        let now = Local::now().naive_local();
+        NaiveDateTime {
+            year: now.year(),
+            month: now.month(),
             day: 1,
             hour: 0,
             minute: 0,
@@ -946,7 +963,11 @@ impl Formatter {
     pub fn parse<S: AsRef<str>, T: DateTimeFormat>(&self, input: S) -> Result<T> {
         let mut s = input.as_ref().as_bytes();
 
-        let mut dt = NaiveDateTime::new();
+        let mut dt = if !T::HAS_DATE {
+            NaiveDateTime::new()
+        } else {
+            NaiveDateTime::now()
+        };
 
         macro_rules! expect_char {
             ($ch: expr) => {{
@@ -1027,14 +1048,15 @@ impl Formatter {
                                 "format code (year) appears twice".to_string(),
                             ));
                         }
-                        let len = if T::YEAR_MAX_LENGTH > 4 {
+                        let len = if T::IS_INTERVAL_YM {
                             T::YEAR_MAX_LENGTH
                         } else {
                             *n as usize
                         };
-                        let (year, negate) = expect_number!(len);
-                        dt.year = year;
+                        let (negate, year, rem) = parse_year(s, len, dt.year)?;
                         dt.negate = negate;
+                        dt.year = year;
+                        s = rem;
                         is_year_set = true;
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
@@ -1260,6 +1282,30 @@ fn eat_digits(s: &[u8], max_len: usize) -> (&[u8], &[u8]) {
         .take_while(|&i| i.is_ascii_digit())
         .count();
     (&s[..i], &s[i..])
+}
+
+#[inline]
+fn parse_year(input: &[u8], max_len: usize, current_year: i32) -> Result<(bool, i32, &[u8])> {
+    // todo do not allow sign before y/yy/yyy
+    match max_len {
+        2 => {
+            let input_len = input.len();
+            let (negate, year, rem) = parse_number(input, 4)?;
+            if input_len - rem.len() > 2 {
+                Ok((negate, year, rem))
+            } else {
+                let result_year = current_year - current_year % 100 + year;
+                Ok((negate, result_year, rem))
+            }
+        }
+        1 | 3 => {
+            let (negate, year, rem) = parse_number(input, max_len)?;
+            let result_year =
+                current_year - current_year % YEAR_MODIFIER[max_len - 1] as i32 + year;
+            Ok((negate, result_year, rem))
+        }
+        _ => parse_number(input, max_len),
+    }
 }
 
 #[inline]

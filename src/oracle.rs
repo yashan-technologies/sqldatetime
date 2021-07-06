@@ -336,6 +336,7 @@ impl PartialOrd<SqlDate> for Date {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Datelike, Local};
 
     fn generate_date(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Date {
         Date::new(
@@ -511,19 +512,25 @@ mod tests {
 
             // Default
             {
-                let date = generate_date(1, 1, 1, 0, 0, 5);
-                let ts2 = Date::parse("5", "ss").unwrap();
-                assert_eq!(date, ts2);
+                let now = Local::now().naive_local();
+                let year = now.year();
+                let month = now.month();
 
-                let date = generate_date(1, 1, 1, 0, 0, 0);
-                let ts2 = Date::parse("", "").unwrap();
-                assert_eq!(date, ts2);
+                let dt = generate_date(year, month, 1, 0, 0, 5);
+                let date = Date::parse("5", "ss").unwrap();
+                assert_eq!(dt, date);
 
-                let ts2 = Date::parse("jan", "MONTH").unwrap();
-                assert_eq!(date, ts2);
+                let dt = generate_date(year, month, 1, 0, 0, 0);
+                let date = Date::parse("", "").unwrap();
+                assert_eq!(dt, date);
 
-                let ts2 = Date::parse("January", "mon").unwrap();
-                assert_eq!(date, ts2)
+                let dt = generate_date(year, 1, 1, 0, 0, 0);
+                let date = Date::parse("jan", "MONTH").unwrap();
+                assert_eq!(dt, date);
+
+                let dt = generate_date(year, 1, 1, 0, 0, 0);
+                let date = Date::parse("January", "mon").unwrap();
+                assert_eq!(dt, date);
             }
 
             // Short format

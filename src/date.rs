@@ -396,6 +396,7 @@ impl DateTime for Date {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chrono::{Datelike, Local};
 
     #[test]
     fn test_date() {
@@ -443,13 +444,13 @@ mod tests {
 
         // Default
         {
-            let date = generate_date(1, 1, 1);
-            let date2 = Date::parse(" ", " ").unwrap();
-            assert_eq!(date, date2);
+            let now = Local::now().naive_local();
+            let dt = Date::try_from_ymd(now.year(), now.month(), 1).unwrap();
+            let date = Date::parse(" ", " ").unwrap();
+            assert_eq!(date, dt);
 
-            let date = generate_date(1, 1, 1);
-            let date2 = Date::parse("", "").unwrap();
-            assert_eq!(date, date2)
+            let date = Date::parse("", "").unwrap();
+            assert_eq!(date, dt);
         }
 
         // Short format
