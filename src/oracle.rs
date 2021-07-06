@@ -255,7 +255,7 @@ impl From<Date> for NaiveDateTime {
             sec,
             usec,
             ampm: None,
-            negate: false,
+            negative: false,
         }
     }
 }
