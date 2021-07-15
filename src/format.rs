@@ -1116,7 +1116,11 @@ impl Formatter {
                                 "'HH24' precludes use of meridian indicator".to_string(),
                             ));
                         }
-                        let (hour, negative) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        let (hour, negative) = if T::IS_INTERVAL_DT {
+                            expect_number!(T::HOUR_MAX_LENGTH)
+                        } else {
+                            expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0)
+                        };
                         if negative {
                             return Err(Error::ParseError(
                                 "hour must be between 0 and 23".to_string(),
@@ -1155,8 +1159,11 @@ impl Formatter {
                                 "format code (minute) appears twice".to_string(),
                             ));
                         }
-                        let (minute, negative) =
-                            expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0);
+                        let (minute, negative) = if T::IS_INTERVAL_DT {
+                            expect_number!(T::MINUTE_MAX_LENGTH)
+                        } else {
+                            expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0)
+                        };
                         if negative {
                             return Err(Error::ParseError(
                                 "minutes must be between 0 and 59".to_string(),
@@ -1175,8 +1182,11 @@ impl Formatter {
                                 "format code (second) appears twice".to_string(),
                             ));
                         }
-                        let (sec, negative) =
-                            expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0);
+                        let (sec, negative) = if T::IS_INTERVAL_DT {
+                            expect_number!(T::SECOND_MAX_LENGTH)
+                        } else {
+                            expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0)
+                        };
                         if negative {
                             return Err(Error::ParseError(
                                 "seconds must be between 0 and 59".to_string(),
