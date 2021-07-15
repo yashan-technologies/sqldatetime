@@ -651,6 +651,12 @@ mod tests {
         assert_eq!(interval, interval2);
         let interval2 = IntervalYM::parse("-0000 - 11", "yyyy - mm").unwrap();
         assert_eq!(interval, interval2);
+        let interval2 = IntervalYM::parse("       -0000 - 11       ", "yyyy - mm").unwrap();
+        assert_eq!(interval, interval2);
+        let interval2 = IntervalYM::parse("       -0000 - 11       ", "    yyyy - mm    ").unwrap();
+        assert_eq!(interval, interval2);
+        let interval2 = IntervalYM::parse("-0000-11", "yyyy - mm").unwrap();
+        assert_eq!(interval, interval2);
 
         let interval = IntervalYM::try_from_months(11).unwrap();
         let interval2 = IntervalYM::parse("0000-11", "yyyy-mm").unwrap();
