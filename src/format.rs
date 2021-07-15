@@ -830,7 +830,9 @@ impl Formatter {
 
         for field in parser {
             if let Field::Invalid = field {
-                return Err(Error::InvalidFormat(fmt.as_ref().to_string()));
+                return Err(Error::InvalidFormat(
+                    "date format not recognized".to_string(),
+                ));
             }
 
             if fields.is_full() {
@@ -965,9 +967,22 @@ impl Formatter {
     /// Parses datetime types
     #[inline]
     pub fn parse<S: AsRef<str>, T: DateTimeFormat>(&self, input: S) -> Result<T> {
-        match self.format_exact {
+        let result = match self.format_exact {
             true => self.parse_internal::<S, T, true>(input),
             false => self.parse_internal::<S, T, false>(input),
+        };
+        if T::IS_INTERVAL_YM || T::IS_INTERVAL_DT {
+            match result {
+                Ok(_) => result,
+                Err(e) => match e {
+                    Error::ParseError(_) => {
+                        Err(Error::ParseError("the interval is invalid".to_string()))
+                    }
+                    _ => Err(e),
+                },
+            }
+        } else {
+            result
         }
     }
 
@@ -1154,7 +1169,7 @@ impl Formatter {
                             ));
                         }
                         let (hour, negative) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
-                        if negative {
+                        if negative || hour < 1 || hour > 12 {
                             return Err(Error::ParseError(
                                 "hour must be between 1 and 12".to_string(),
                             ));
@@ -1390,7 +1405,7 @@ fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
     } else if CaseInsensitive::starts_with(s, b"P.M.") {
         Ok((AmPm::Pm, &s[4..]))
     } else {
-        Err(Error::ParseError("AM/PM is missing".to_string()))
+        Err(Error::ParseError("AM/A.M. or PM/P.M. required".to_string()))
     }
 }
 
@@ -1433,7 +1448,7 @@ fn parse_month_name(s: &[u8]) -> Result<(Month, &[u8])> {
         }
     }
 
-    Err(Error::ParseError("month is missing".to_string()))
+    Err(Error::ParseError("not a valid month".to_string()))
 }
 
 #[inline]
@@ -1450,7 +1465,7 @@ fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
         }
     }
 
-    Err(Error::ParseError("week day is missing".to_string()))
+    Err(Error::ParseError("not a valid day of the week".to_string()))
 }
 
 pub struct LazyFormat<T: DateTimeFormat> {

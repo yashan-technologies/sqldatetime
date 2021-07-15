@@ -456,6 +456,15 @@ mod tests {
                 )
                 .is_err());
 
+                assert_eq!(
+                    Timestamp::parse("23:60:00", "hh24:mi:ss").err().unwrap(),
+                    Error::InvalidMinute
+                );
+
+                assert_eq!(
+                    Timestamp::parse("23:00:60", "hh24:mi:ss").err().unwrap(),
+                    Error::InvalidSecond
+                );
                 // todo duplication special check, including parse and format
             }
 
