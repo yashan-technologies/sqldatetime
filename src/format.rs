@@ -817,6 +817,7 @@ impl<'a> Iterator for FormatParser<'a> {
 #[derive(Debug)]
 pub struct Formatter {
     fields: StackVec<Field, MAX_FIELDS>,
+    format_exact: bool,
 }
 
 impl Formatter {
@@ -841,7 +842,10 @@ impl Formatter {
             fields.push(field);
         }
 
-        Ok(Formatter { fields })
+        Ok(Formatter {
+            fields,
+            format_exact: false,
+        })
     }
 
     /// Formats datetime types
@@ -961,6 +965,17 @@ impl Formatter {
     /// Parses datetime types
     #[inline]
     pub fn parse<S: AsRef<str>, T: DateTimeFormat>(&self, input: S) -> Result<T> {
+        match self.format_exact {
+            true => self.parse_internal::<S, T, true>(input),
+            false => self.parse_internal::<S, T, false>(input),
+        }
+    }
+
+    #[inline]
+    fn parse_internal<S: AsRef<str>, T: DateTimeFormat, const FX: bool>(
+        &self,
+        input: S,
+    ) -> Result<T> {
         let mut s = input.as_ref().as_bytes();
 
         let mut dt = if !T::HAS_DATE {
@@ -1025,14 +1040,13 @@ impl Formatter {
         let mut dow: Option<WeekDay> = None;
 
         for field in self.fields.iter() {
+            if !FX {
+                s = eat_whitespaces(s);
+            }
             match field {
                 // todo ignore the absence of symbols; Format exact
                 Field::Invalid => unreachable!(),
-                Field::Blank(n) => {
-                    for _ in 0..*n {
-                        expect_char_with_tolerence!(b' ')
-                    }
-                }
+                Field::Blank(_) => {}
                 Field::Hyphen => expect_char!(b'-'),
                 Field::Colon => expect_char_with_tolerence!(b':'),
                 Field::Slash => expect_char!(b'/'),
@@ -1269,6 +1283,10 @@ impl Formatter {
             }
         }
 
+        if !FX {
+            s = eat_whitespaces(s);
+        }
+
         if !s.is_empty() {
             return Err(Error::ParseError(
                 "format picture ends before converting entire input string".to_string(),
@@ -1329,6 +1347,12 @@ fn eat_digits(s: &[u8], max_len: usize) -> (&[u8], &[u8]) {
         .take_while(|&i| i.is_ascii_digit())
         .count();
     (&s[..i], &s[i..])
+}
+
+#[inline]
+fn eat_whitespaces(s: &[u8]) -> &[u8] {
+    let i = s.iter().take_while(|&i| i.is_ascii_whitespace()).count();
+    &s[i..]
 }
 
 #[inline]
