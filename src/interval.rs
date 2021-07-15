@@ -66,11 +66,15 @@ impl IntervalYM {
     /// Creates a `IntervalYM` from the given year and month.
     #[inline]
     pub const fn try_from_ym(year: u32, month: u32) -> Result<Self> {
-        if IntervalYM::is_valid_ym(year, month) {
-            Ok(unsafe { IntervalYM::from_ym_unchecked(year, month) })
-        } else {
-            Err(Error::IntervalOutOfRange)
+        if year >= INTERVAL_MAX_YEAR as u32 && (year != INTERVAL_MAX_YEAR as u32 || month != 0) {
+            return Err(Error::IntervalOutOfRange);
         }
+
+        if month >= MONTHS_PER_YEAR {
+            return Err(Error::InvalidMonth);
+        }
+
+        Ok(unsafe { IntervalYM::from_ym_unchecked(year, month) })
     }
 
     /// Creates a `IntervalYM` from the given months.
@@ -311,11 +315,29 @@ impl IntervalDT {
         sec: u32,
         usec: u32,
     ) -> Result<Self> {
-        if IntervalDT::is_valid(day, hour, minute, sec, usec) {
-            Ok(unsafe { IntervalDT::from_dhms_unchecked(day, hour, minute, sec, usec) })
-        } else {
-            Err(Error::IntervalOutOfRange)
+        if day >= INTERVAL_MAX_DAY as u32
+            && (day != INTERVAL_MAX_DAY as u32 || hour != 0 || minute != 0 || sec != 0 || usec != 0)
+        {
+            return Err(Error::IntervalOutOfRange);
         }
+
+        if hour >= HOURS_PER_DAY {
+            return Err(Error::TimeOutOfRange);
+        }
+
+        if minute >= MINUTES_PER_HOUR {
+            return Err(Error::InvalidMinute);
+        }
+
+        if sec >= SECONDS_PER_MINUTE {
+            return Err(Error::InvalidSecond);
+        }
+
+        if usec > USECONDS_MAX {
+            return Err(Error::InvalidFraction);
+        }
+
+        Ok(unsafe { IntervalDT::from_dhms_unchecked(day, hour, minute, sec, usec) })
     }
 
     /// Creates a `IntervalDT` from the given microseconds without checking the validity.
@@ -686,6 +708,10 @@ mod tests {
         assert!(IntervalYM::parse("11", "mi").is_err());
         assert!(IntervalYM::parse("11", "ss").is_err());
 
+        assert_eq!(
+            IntervalYM::parse("xxxx", "yy-mm").err().unwrap(),
+            Error::ParseError("the interval is invalid".to_string())
+        )
         // todo invalid fields
     }
 

@@ -40,11 +40,23 @@ impl Time {
     /// Creates a `Time` from the given hour, minute, second and microsecond.
     #[inline]
     pub const fn try_from_hms(hour: u32, minute: u32, sec: u32, usec: u32) -> Result<Time> {
-        if Time::is_valid(hour, minute, sec, usec) {
-            Ok(unsafe { Time::from_hms_unchecked(hour, minute, sec, usec) })
-        } else {
-            Err(Error::TimeOutOfRange)
+        if hour >= HOURS_PER_DAY {
+            return Err(Error::TimeOutOfRange);
         }
+
+        if minute >= MINUTES_PER_HOUR {
+            return Err(Error::InvalidMinute);
+        }
+
+        if sec >= SECONDS_PER_MINUTE {
+            return Err(Error::InvalidSecond);
+        }
+
+        if usec > USECONDS_MAX {
+            return Err(Error::InvalidFraction);
+        }
+
+        Ok(unsafe { Time::from_hms_unchecked(hour, minute, sec, usec) })
     }
 
     /// Checks if the given hour, minute, second and microsecond fields are valid.
@@ -267,55 +279,55 @@ mod tests {
         let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
         assert_eq!(time.usecs(), 86399999999);
         assert_eq!(time.extract(), (23, 59, 59, 999999));
-        let time2 = Time::parse("23:59:59.999999", "HH:MI:SS.FF").unwrap();
+        let time2 = Time::parse("23:59:59.999999", "HH24:MI:SS.FF").unwrap();
         assert_eq!(time2, time);
-        let time2 = Time::parse("235959999999", "HHMISSFF").unwrap();
+        let time2 = Time::parse("235959999999", "HH24MISSFF").unwrap();
         assert_eq!(time2, time);
 
         let time = Time::try_from_hms(23, 59, 5, 0).unwrap();
-        let time2 = Time::parse("23595", "HHMISS").unwrap();
+        let time2 = Time::parse("23595", "HH24MISS").unwrap();
         assert_eq!(time2, time);
 
         // parse/format with fraction
         {
-            let time = Time::try_from_hms(23, 59, 5, 12345).unwrap();
-            let time2 = Time::parse("23:59:5.012345", "HH:MI:SS.FF").unwrap();
+            let time = Time::try_from_hms(12, 59, 5, 12345).unwrap();
+            let time2 = Time::parse("12:59:5.012345", "HH:MI:SS.FF").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 50000).unwrap();
-            let time2 = Time::parse("23:59:5.05", "HH:MI:SS.FF").unwrap();
+            let time2 = Time::parse("23:59:5.05", "HH24:MI:SS.FF").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 500000).unwrap();
-            let time2 = Time::parse("23:59:5.5", "HH:MI:SS.FF").unwrap();
+            let time2 = Time::parse("23:59:5.5", "HH24:MI:SS.FF").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 123450).unwrap();
-            let time2 = Time::parse("23:59:5.12345", "HH:MI:SS.FF").unwrap();
+            let time2 = Time::parse("23:59:5.12345", "HH24:MI:SS.FF").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 123450).unwrap();
-            let time2 = Time::parse("23:59:5.12345000", "HH:MI:SS.FF9").unwrap();
+            let time2 = Time::parse("23:59:5.12345000", "HH24:MI:SS.FF9").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 123450).unwrap();
-            let time2 = Time::parse("23:59:5.123450", "HH:MI:SS.FF").unwrap();
+            let time2 = Time::parse("23:59:5.123450", "HH24:MI:SS.FF").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 500).unwrap();
-            let time2 = Time::parse("23:59:5.0005", "HH:MI:SS.FF").unwrap();
+            let time2 = Time::parse("23:59:5.0005", "HH24:MI:SS.FF").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 123450).unwrap();
-            let time2 = Time::parse("23:59:5.12345", "HH:MI:SS.FF9").unwrap();
+            let time2 = Time::parse("23:59:5.12345", "HH24:MI:SS.FF9").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 50000).unwrap();
-            let time2 = Time::parse("23:59:5.05", "HH:MI:SS.FF3").unwrap();
+            let time2 = Time::parse("23:59:5.05", "HH24:MI:SS.FF3").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 50000).unwrap();
-            let time2 = Time::parse("05 23:59:5", "ff3 HH:MI:SS").unwrap();
+            let time2 = Time::parse("05 23:59:5", "ff3 HH24:MI:SS").unwrap();
             assert_eq!(time2, time);
 
             let time = Time::try_from_hms(23, 59, 5, 50000).unwrap();
@@ -334,7 +346,7 @@ mod tests {
         {
             // Parse
             let time = Time::try_from_hms(23, 59, 59, 999999).unwrap();
-            let time2 = Time::parse("999999 59:23:59", "FF MI:HH:SS").unwrap();
+            let time2 = Time::parse("999999 59:23:59", "FF MI:HH24:SS").unwrap();
             assert_eq!(time2, time);
 
             // Format
@@ -383,6 +395,7 @@ mod tests {
             assert!(Time::parse("60", "mi").is_err());
             assert!(Time::parse("60", "hh").is_err());
             assert!(Time::parse("60", "hh").is_err());
+            assert!(Time::parse("13", "hh").is_err());
             assert!(Time::parse("99999999", "FF").is_err());
 
             assert!(Time::parse("23635", "HHMISS").is_err());

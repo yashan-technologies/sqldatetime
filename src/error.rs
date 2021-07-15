@@ -20,17 +20,23 @@ pub enum Error {
     InvalidMonth,
     #[error("day of month must be between 1 and last day of month")]
     InvalidDay,
-    #[error("date not valid for month specified")]
+    #[error("minutes must be between 0 and 59")]
+    InvalidMinute,
+    #[error("seconds must be between 0 and 59")]
+    InvalidSecond,
+    #[error("invalid fraction")]
+    InvalidFraction,
+    #[error("the fractional seconds must be between 0 and 999999")]
     InvalidDate,
     #[error("numeric overflow")]
     NumericOverflow,
     #[error("divisor is equal to zero")]
     DivideByZero,
-    #[error("invalid format: {0}")]
+    #[error("{0}")]
     InvalidFormat(String),
-    #[error("failed to format: {0}")]
+    #[error("{0}")]
     FormatError(String),
-    #[error("failed to parse: {0}")]
+    #[error("{0}")]
     ParseError(String),
 }
 
