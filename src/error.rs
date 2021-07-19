@@ -24,9 +24,9 @@ pub enum Error {
     InvalidMinute,
     #[error("seconds must be between 0 and 59")]
     InvalidSecond,
-    #[error("invalid fraction")]
-    InvalidFraction,
     #[error("the fractional seconds must be between 0 and 999999")]
+    InvalidFraction,
+    #[error("date not valid for month specified")]
     InvalidDate,
     #[error("numeric overflow")]
     NumericOverflow,
