@@ -1243,7 +1243,7 @@ impl Formatter {
                         return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
-                Field::AmPm(_) => {
+                Field::AmPm(style) => {
                     if T::HAS_TIME && !T::IS_INTERVAL_DT {
                         if dt.ampm.is_some() {
                             return Err(Error::ParseError(
@@ -1255,7 +1255,7 @@ impl Formatter {
                                 "'HH24' precludes use of meridian indicator".to_string(),
                             ));
                         }
-                        let (am_pm, rem) = parse_ampm(s)?;
+                        let (am_pm, rem) = parse_ampm(s, style)?;
                         s = rem;
 
                         dt.ampm = Some(am_pm);
@@ -1395,17 +1395,26 @@ fn parse_year(input: &[u8], max_len: usize, current_year: i32) -> Result<(bool, 
 }
 
 #[inline]
-fn parse_ampm(s: &[u8]) -> Result<(AmPm, &[u8])> {
-    if CaseInsensitive::starts_with(s, b"AM") {
-        Ok((AmPm::Am, &s[2..]))
-    } else if CaseInsensitive::starts_with(s, b"PM") {
-        Ok((AmPm::Pm, &s[2..]))
-    } else if CaseInsensitive::starts_with(s, b"A.M.") {
-        Ok((AmPm::Am, &s[4..]))
-    } else if CaseInsensitive::starts_with(s, b"P.M.") {
-        Ok((AmPm::Pm, &s[4..]))
-    } else {
-        Err(Error::ParseError("AM/A.M. or PM/P.M. required".to_string()))
+fn parse_ampm<'a>(s: &'a [u8], style: &'a AmPmStyle) -> Result<(AmPm, &'a [u8])> {
+    match style {
+        AmPmStyle::LowerDot | AmPmStyle::UpperDot => {
+            if CaseInsensitive::starts_with(s, b"A.M.") {
+                Ok((AmPm::Am, &s[4..]))
+            } else if CaseInsensitive::starts_with(s, b"P.M.") {
+                Ok((AmPm::Pm, &s[4..]))
+            } else {
+                Err(Error::ParseError("AM/A.M. or PM/P.M. required".to_string()))
+            }
+        }
+        AmPmStyle::Upper | AmPmStyle::Lower => {
+            if CaseInsensitive::starts_with(s, b"AM") {
+                Ok((AmPm::Am, &s[2..]))
+            } else if CaseInsensitive::starts_with(s, b"PM") {
+                Ok((AmPm::Pm, &s[2..]))
+            } else {
+                Err(Error::ParseError("AM/A.M. or PM/P.M. required".to_string()))
+            }
+        }
     }
 }
 
