@@ -408,6 +408,11 @@ mod tests {
                     Timestamp::parse("PM 11-9999-59.999999 12-59-31", "PM HH-YYYY-MI.FF MM-SS-DD")
                         .unwrap();
                 assert_eq!(ts2, ts);
+                assert!(Timestamp::parse(
+                    "P.M. 11-9999-59.999999 12-59-31",
+                    "PM HH-YYYY-MI.FF MM-SS-DD"
+                )
+                .is_err());
 
                 let ts2 =
                     Timestamp::parse("23-9999-59.999999 12 59 31", "HH24-YYYY-MI.FF MM SS DD")
