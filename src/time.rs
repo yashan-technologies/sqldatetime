@@ -6,7 +6,7 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{Date, DateTime, IntervalDT};
+use crate::{Date, DateTime, IntervalDT, Timestamp};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -189,6 +189,13 @@ impl From<Time> for NaiveDateTime {
             usec,
             ..NaiveDateTime::new()
         }
+    }
+}
+
+impl From<Timestamp> for Time {
+    #[inline(always)]
+    fn from(timestamp: Timestamp) -> Self {
+        timestamp.time()
     }
 }
 

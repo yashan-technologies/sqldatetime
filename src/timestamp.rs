@@ -4,6 +4,7 @@ use crate::common::{is_valid_timestamp, USECONDS_PER_DAY};
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{Date, DateTime, IntervalDT, IntervalYM, Time};
+use chrono::{Datelike, Local};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -242,6 +243,19 @@ impl From<Date> for Timestamp {
     #[inline]
     fn from(date: Date) -> Self {
         date.and_zero_time()
+    }
+}
+
+impl TryFrom<Time> for Timestamp {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(time: Time) -> Result<Self> {
+        let now = Local::now().naive_local();
+        Ok(Timestamp::new(
+            Date::try_from_ymd(now.year(), now.month(), 1)?,
+            time,
+        ))
     }
 }
 
