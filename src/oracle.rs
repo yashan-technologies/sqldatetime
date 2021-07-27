@@ -2,6 +2,7 @@ use crate::common::{is_valid_timestamp, USECONDS_PER_DAY, USECONDS_PER_SECOND};
 use crate::error::{Error, Result};
 use crate::format::{DateTimeFormat, LazyFormat, NaiveDateTime};
 use crate::{Date as SqlDate, DateTime, Formatter, IntervalDT, IntervalYM, Time, Timestamp};
+use chrono::{Datelike, Local};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -239,6 +240,26 @@ impl From<Date> for Timestamp {
     }
 }
 
+impl TryFrom<Time> for Date {
+    type Error = Error;
+
+    #[inline]
+    fn try_from(time: Time) -> Result<Self> {
+        let now = Local::now().naive_local();
+        Ok(Date::new(
+            SqlDate::try_from_ymd(now.year(), now.month(), 1)?,
+            time,
+        ))
+    }
+}
+
+impl From<Date> for Time {
+    #[inline(always)]
+    fn from(date: Date) -> Self {
+        date.time()
+    }
+}
+
 impl From<Date> for NaiveDateTime {
     #[inline]
     fn from(dt: Date) -> Self {
@@ -371,6 +392,16 @@ mod tests {
     #[test]
     fn test_date() {
         {
+            let time = Time::try_from_hms(1, 23, 4, 5).unwrap();
+            let timestamp = Timestamp::try_from(time).unwrap();
+            let date = Date::try_from(time).unwrap();
+            let now = Local::now().naive_local();
+            assert_eq!(
+                timestamp,
+                generate_ts(now.year(), now.month(), 1, 1, 23, 4, 5)
+            );
+            assert_eq!(date, generate_date(now.year(), now.month(), 1, 1, 23, 4));
+
             let date = SqlDate::try_from_ymd(1970, 1, 1).unwrap();
             let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
             let date = Date::new(date, time);
