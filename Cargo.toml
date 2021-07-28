@@ -16,10 +16,10 @@ serde = ["serde_crate", "once_cell"]
 oracle = []
 
 [dependencies]
-thiserror = "1.0.25"
+thiserror = "1.0.26"
 stack-buf = "0.1.6"
 serde_crate = { package = "serde", version = "1.0.126", optional = true }
-once_cell = { version = "1.7.2", features = ["default", "parking_lot"], optional = true }
+once_cell = { version = "1.8.0", features = ["default", "parking_lot"], optional = true }
 chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 
 [dev-dependencies]
