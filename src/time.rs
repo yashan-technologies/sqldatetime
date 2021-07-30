@@ -407,7 +407,10 @@ mod tests {
 
             assert!(Time::parse("23635", "HHMISS").is_err());
             let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
-            assert!(time.format("testtest").is_err())
+            assert!(time.format("testtest").is_err());
+
+            assert!(Time::parse("11:12:134", "hh24:mi:ss.ff").is_err());
+            assert!(Time::parse("11:12134", "hh24:mi:ss.ff").is_err());
 
             // todo Add all types check
         }

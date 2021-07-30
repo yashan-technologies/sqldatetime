@@ -1016,8 +1016,13 @@ impl Formatter {
             ($ch: expr) => {{
                 if expect_char(s, $ch) {
                     s = &s[1..];
-                } else {
+                } else if s.is_empty() {
                     continue;
+                } else {
+                    return Err(Error::ParseError(format!(
+                        "the input is inconsistent with the format: {}",
+                        input.as_ref()
+                    )));
                 }
             }};
         }
