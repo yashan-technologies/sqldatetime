@@ -253,7 +253,7 @@ impl TryFrom<Time> for Timestamp {
     fn try_from(time: Time) -> Result<Self> {
         let now = Local::now().naive_local();
         Ok(Timestamp::new(
-            Date::try_from_ymd(now.year(), now.month(), 1)?,
+            Date::try_from_ymd(now.year(), now.month(), now.day())?,
             time,
         ))
     }
