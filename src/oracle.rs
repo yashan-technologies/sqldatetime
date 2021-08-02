@@ -247,7 +247,7 @@ impl TryFrom<Time> for Date {
     fn try_from(time: Time) -> Result<Self> {
         let now = Local::now().naive_local();
         Ok(Date::new(
-            SqlDate::try_from_ymd(now.year(), now.month(), 1)?,
+            SqlDate::try_from_ymd(now.year(), now.month(), now.day())?,
             time,
         ))
     }
@@ -398,9 +398,12 @@ mod tests {
             let now = Local::now().naive_local();
             assert_eq!(
                 timestamp,
-                generate_ts(now.year(), now.month(), 1, 1, 23, 4, 5)
+                generate_ts(now.year(), now.month(), now.day(), 1, 23, 4, 5)
             );
-            assert_eq!(date, generate_date(now.year(), now.month(), 1, 1, 23, 4));
+            assert_eq!(
+                date,
+                generate_date(now.year(), now.month(), now.day(), 1, 23, 4)
+            );
 
             let date = SqlDate::try_from_ymd(1970, 1, 1).unwrap();
             let time = Time::try_from_hms(1, 2, 3, 4).unwrap();
