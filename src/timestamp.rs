@@ -583,6 +583,26 @@ mod tests {
                 let timestamp =
                     Timestamp::parse("2020-11-12 11:23:25", "YYYY-MM-DD HH24:MI:SS.ff").unwrap();
                 assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 0));
+
+                let timestamp =
+                    Timestamp::parse("2020-11-12 11:23:25.123456", "YYYY-MM-DD HH:MI:SS.ff AM")
+                        .unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 123456));
+
+                let timestamp =
+                    Timestamp::parse("2020-11-12 11:23:25.123", "YYYY-MM-DD HH:MI:SS.ff A.M.")
+                        .unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 123000));
+
+                let timestamp =
+                    Timestamp::parse("2020-11-12 11:23:25.123", "YYYY-MM-DD HH:MI:SS.ff PM")
+                        .unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 123000));
+
+                let timestamp =
+                    Timestamp::parse("2020-11-12 11:23:25      ", "YYYY-MM-DD HH:MI:SS.ff PM")
+                        .unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 0));
             }
 
             // Short format
@@ -825,6 +845,8 @@ mod tests {
 
                 let timestamp = generate_ts(1234, 5, 6, 7, 8, 9, 10);
                 assert!(timestamp.format("testtest").is_err());
+
+                assert!(Timestamp::parse("2021423 03:04:05", "yyyymmdd am hh:mi:ss",).is_err());
             }
 
             // todo
