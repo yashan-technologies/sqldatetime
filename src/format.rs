@@ -1401,6 +1401,9 @@ fn parse_year(input: &[u8], max_len: usize, current_year: i32) -> Result<(bool, 
 
 #[inline]
 fn parse_ampm<'a>(s: &'a [u8], style: &'a AmPmStyle) -> Result<(AmPm, &'a [u8])> {
+    if s.is_empty() {
+        return Ok((AmPm::Am, s));
+    }
     match style {
         AmPmStyle::LowerDot | AmPmStyle::UpperDot => {
             if CaseInsensitive::starts_with(s, b"A.M.") {
