@@ -394,6 +394,29 @@ mod tests {
                 let time = Time::parse("11:23:25", "HH24:MI:SS.ff").unwrap();
                 assert_eq!(time, Time::try_from_hms(11, 23, 25, 0).unwrap());
             }
+            // Absence of am/pm
+            {
+                let time = Time::parse("11:00:23", "HH12:MI:SS PM").unwrap();
+                assert_eq!(time, Time::try_from_hms(11, 0, 23, 0).unwrap());
+
+                let time = Time::parse("12:00:23", "HH12:MI:SS PM").unwrap();
+                assert_eq!(time, Time::try_from_hms(12, 0, 23, 0).unwrap());
+
+                let time = Time::parse("1:00:23", "HH12:MI:SS PM").unwrap();
+                assert_eq!(time, Time::try_from_hms(1, 0, 23, 0).unwrap());
+
+                let time = Time::parse("11:00:23", "HH12:MI:SS AM").unwrap();
+                assert_eq!(time, Time::try_from_hms(11, 0, 23, 0).unwrap());
+
+                let time = Time::parse("1:00:23", "HH12:MI:SS AM").unwrap();
+                assert_eq!(time, Time::try_from_hms(1, 0, 23, 0).unwrap());
+
+                let time = Time::parse("12:00:23", "HH12:MI:SS AM").unwrap();
+                assert_eq!(time, Time::try_from_hms(12, 0, 23, 0).unwrap());
+
+                let time = Time::parse("12:00:23", "HH12:MI:SS").unwrap();
+                assert_eq!(time, Time::try_from_hms(12, 0, 23, 0).unwrap());
+            }
         }
 
         // Invalid
