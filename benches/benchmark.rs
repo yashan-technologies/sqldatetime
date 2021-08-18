@@ -465,7 +465,7 @@ mod oracle_bench {
 
     pub fn oracle_date_format(bench: &mut Bencher) {
         let od = OracleDate::from_str("2020-1-1 12:12:34");
-        let fmt = black_box(Formatter::try_new(black_box("yyyy")).unwrap());
+        let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss")).unwrap());
         bench.iter(|| {
             let mut s = StackVec::<u8, 100>::new();
             let _n = fmt.format(black_box(od), &mut s).unwrap();
