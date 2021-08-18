@@ -138,48 +138,54 @@ fn interval_ym_parse(bench: &mut Bencher) {
 fn timestamp_format(bench: &mut Bencher) {
     let ts = Timestamp::from_str("2021-8-16 12:12:34.234566");
     let fmt = Formatter::try_new("yyyy-mm-dd hh24:mi:ss.ff").unwrap();
+    let mut s = String::with_capacity(100);
     bench.iter(|| {
-        let _n = fmt.format(black_box(ts), black_box(String::new())).unwrap();
+        let _n = fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
 
 fn timestamp_format_dow(bench: &mut Bencher) {
     let ts = Timestamp::from_str("2021-8-16 12:12:34.234566");
     let fmt = Formatter::try_new("yyyy-mm-dd hh24:mi:ss.ff day").unwrap();
+    let mut s = String::with_capacity(100);
     bench.iter(|| {
-        let _n = fmt.format(black_box(ts), black_box(String::new())).unwrap();
+        let _n = fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
 
 fn date_format(bench: &mut Bencher) {
     let ts = Date::from_str("2021-8-16");
     let fmt = Formatter::try_new("yyyy-mm-dd").unwrap();
+    let mut s = String::with_capacity(100);
     bench.iter(|| {
-        let _n = fmt.format(black_box(ts), black_box(String::new())).unwrap();
+        let _n = fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
 
 fn time_format(bench: &mut Bencher) {
     let tm = Time::from_str("12:12:34.234566");
     let fmt = Formatter::try_new("hh24:mi:ss.ff").unwrap();
+    let mut s = String::with_capacity(100);
     bench.iter(|| {
-        let _n = fmt.format(black_box(tm), black_box(String::new())).unwrap();
+        let _n = fmt.format(black_box(tm), &mut s).unwrap();
     })
 }
 
 fn interval_dt_format(bench: &mut Bencher) {
     let ds = IntervalDT::from_str("12345 10:10:10.123456");
     let fmt = Formatter::try_new("dd hh24:mi:ss.ff").unwrap();
+    let mut s = String::with_capacity(100);
     bench.iter(|| {
-        let _n = fmt.format(black_box(ds), black_box(String::new())).unwrap();
+        let _n = fmt.format(black_box(ds), &mut s).unwrap();
     })
 }
 
 fn interval_ym_format(bench: &mut Bencher) {
     let ym = IntervalYM::from_str("12345-10");
     let fmt = Formatter::try_new("yy-mm").unwrap();
+    let mut s = String::with_capacity(100);
     bench.iter(|| {
-        let _n = fmt.format(black_box(ym), black_box(String::new())).unwrap();
+        let _n = fmt.format(black_box(ym), &mut s).unwrap();
     })
 }
 
@@ -459,15 +465,18 @@ mod oracle_bench {
     pub fn oracle_date_format(bench: &mut Bencher) {
         let od = OracleDate::from_str("2020-1-1 12:12:34");
         let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss")).unwrap());
+        let mut s = String::with_capacity(100);
         bench.iter(|| {
-            let _n = fmt.format(black_box(od), black_box(String::new())).unwrap();
+            let _n = fmt.format(black_box(od), &mut s).unwrap();
         })
     }
 
     pub fn oracle_date_format_dow(bench: &mut Bencher) {
-        let od = OracleDate::from_str("2020-1-1 12:12:34");
+        let od = OracleDate::from_str("2021-8-18 12:12:34");
+        let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss")).unwrap());
+        let mut s = String::with_capacity(100);
         bench.iter(|| {
-            let _n = od.format(black_box("yyyy-mm-dd hh24:mi:ss day")).unwrap();
+            let _n = fmt.format(black_box(od), &mut s).unwrap();
         })
     }
 
