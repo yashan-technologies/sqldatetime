@@ -18,6 +18,7 @@
 use crate::oracle_bench::*;
 use bencher::{benchmark_group, benchmark_main, black_box, Bencher};
 use sqldatetime::{Date, DateTime, Formatter, IntervalDT, IntervalYM, Time, Timestamp};
+use stack_buf::StackVec;
 
 trait FromStr {
     fn from_str(input: &str) -> Self;
@@ -79,67 +80,11 @@ fn timestamp_parse_without_date(bench: &mut Bencher) {
     })
 }
 
-fn date_parse_format(bench: &mut Bencher) {
-    bench.iter(|| Formatter::try_new(black_box("yyyy-mm-dd")).unwrap());
-}
-
-fn date_parse(bench: &mut Bencher) {
-    let fmt = Formatter::try_new(black_box("yyyy-mm-dd")).unwrap();
-    bench.iter(|| {
-        let _n = fmt.parse::<&str, Date>(black_box("2000-1-1")).unwrap();
-    })
-}
-
-fn time_parse_format(bench: &mut Bencher) {
-    bench.iter(|| {
-        Formatter::try_new(black_box("hh24:mi:ss.ff")).unwrap();
-    })
-}
-
-fn time_parse(bench: &mut Bencher) {
-    let fmt = Formatter::try_new(black_box("hh24:mi:ss.ff")).unwrap();
-    bench.iter(|| {
-        let _n = fmt
-            .parse::<&str, Time>(black_box("10:10:10.123456"))
-            .unwrap();
-    })
-}
-
-fn interval_dt_parse_format(bench: &mut Bencher) {
-    bench.iter(|| {
-        Formatter::try_new(black_box("DD hh24:mi:ss.ff")).unwrap();
-    })
-}
-
-fn interval_dt_parse(bench: &mut Bencher) {
-    let fmt = Formatter::try_new(black_box("DD hh24:mi:ss.ff")).unwrap();
-    bench.iter(|| {
-        let _n = fmt
-            .parse::<&str, IntervalDT>(black_box("12345 10:10:10.123456"))
-            .unwrap();
-    })
-}
-
-fn interval_ym_parse_format(bench: &mut Bencher) {
-    bench.iter(|| {
-        Formatter::try_new(black_box("YY-MM")).unwrap();
-    })
-}
-
-fn interval_ym_parse(bench: &mut Bencher) {
-    let fmt = Formatter::try_new(black_box("YY-MM")).unwrap();
-    bench.iter(|| {
-        let _n = fmt
-            .parse::<&str, IntervalYM>(black_box("12345-10"))
-            .unwrap();
-    })
-}
-
 fn timestamp_format(bench: &mut Bencher) {
     let ts = Timestamp::from_str("2021-8-16 12:12:34.234566");
     let fmt = Formatter::try_new("yyyy-mm-dd hh24:mi:ss.ff").unwrap();
-    let mut s = String::with_capacity(100);
     bench.iter(|| {
+        let mut s = StackVec::<u8, 100>::new();
         let _n = fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
@@ -147,45 +92,9 @@ fn timestamp_format(bench: &mut Bencher) {
 fn timestamp_format_dow(bench: &mut Bencher) {
     let ts = Timestamp::from_str("2021-8-16 12:12:34.234566");
     let fmt = Formatter::try_new("yyyy-mm-dd hh24:mi:ss.ff day").unwrap();
-    let mut s = String::with_capacity(100);
     bench.iter(|| {
+        let mut s = StackVec::<u8, 100>::new();
         let _n = fmt.format(black_box(ts), &mut s).unwrap();
-    })
-}
-
-fn date_format(bench: &mut Bencher) {
-    let ts = Date::from_str("2021-8-16");
-    let fmt = Formatter::try_new("yyyy-mm-dd").unwrap();
-    let mut s = String::with_capacity(100);
-    bench.iter(|| {
-        let _n = fmt.format(black_box(ts), &mut s).unwrap();
-    })
-}
-
-fn time_format(bench: &mut Bencher) {
-    let tm = Time::from_str("12:12:34.234566");
-    let fmt = Formatter::try_new("hh24:mi:ss.ff").unwrap();
-    let mut s = String::with_capacity(100);
-    bench.iter(|| {
-        let _n = fmt.format(black_box(tm), &mut s).unwrap();
-    })
-}
-
-fn interval_dt_format(bench: &mut Bencher) {
-    let ds = IntervalDT::from_str("12345 10:10:10.123456");
-    let fmt = Formatter::try_new("dd hh24:mi:ss.ff").unwrap();
-    let mut s = String::with_capacity(100);
-    bench.iter(|| {
-        let _n = fmt.format(black_box(ds), &mut s).unwrap();
-    })
-}
-
-fn interval_ym_format(bench: &mut Bencher) {
-    let ym = IntervalYM::from_str("12345-10");
-    let fmt = Formatter::try_new("yy-mm").unwrap();
-    let mut s = String::with_capacity(100);
-    bench.iter(|| {
-        let _n = fmt.format(black_box(ym), &mut s).unwrap();
     })
 }
 
@@ -293,6 +202,26 @@ fn timestamp_sub_timestamp_100_times(bench: &mut Bencher) {
     })
 }
 
+fn date_parse_format(bench: &mut Bencher) {
+    bench.iter(|| Formatter::try_new(black_box("yyyy-mm-dd")).unwrap());
+}
+
+fn date_parse(bench: &mut Bencher) {
+    let fmt = Formatter::try_new(black_box("yyyy-mm-dd")).unwrap();
+    bench.iter(|| {
+        let _n = fmt.parse::<&str, Date>(black_box("2000-1-1")).unwrap();
+    })
+}
+
+fn date_format(bench: &mut Bencher) {
+    let ts = Date::from_str("2021-8-16");
+    let fmt = Formatter::try_new("yyyy-mm-dd").unwrap();
+    bench.iter(|| {
+        let mut s = StackVec::<u8, 100>::new();
+        let _n = fmt.format(black_box(ts), &mut s).unwrap();
+    })
+}
+
 fn date_sub_days_100_times(bench: &mut Bencher) {
     let dt = Date::from_str("5000-6-6");
     bench.iter(|| {
@@ -354,6 +283,30 @@ fn date_dow(bench: &mut Bencher) {
     })
 }
 
+fn time_parse_format(bench: &mut Bencher) {
+    bench.iter(|| {
+        Formatter::try_new(black_box("hh24:mi:ss.ff")).unwrap();
+    })
+}
+
+fn time_parse(bench: &mut Bencher) {
+    let fmt = Formatter::try_new(black_box("hh24:mi:ss.ff")).unwrap();
+    bench.iter(|| {
+        let _n = fmt
+            .parse::<&str, Time>(black_box("10:10:10.123456"))
+            .unwrap();
+    })
+}
+
+fn time_format(bench: &mut Bencher) {
+    let tm = Time::from_str("12:12:34.234566");
+    let fmt = Formatter::try_new("hh24:mi:ss.ff").unwrap();
+    bench.iter(|| {
+        let mut s = StackVec::<u8, 100>::new();
+        let _n = fmt.format(black_box(tm), &mut s).unwrap();
+    })
+}
+
 fn time_sub_interval_dt(bench: &mut Bencher) {
     let tm = Time::from_str("10:10:10.123456");
     let ds = IntervalDT::from_str("12345 10:10:10.12344");
@@ -376,31 +329,27 @@ fn time_div_f64(bench: &mut Bencher) {
     })
 }
 
-fn interval_dt_mul_f64(bench: &mut Bencher) {
-    let ds = IntervalDT::from_str("1928 10:10:10.123456");
+fn interval_dt_parse_format(bench: &mut Bencher) {
     bench.iter(|| {
-        let _ = black_box(black_box(ds).mul_f64(black_box(64543.2345)));
+        Formatter::try_new(black_box("DD hh24:mi:ss.ff")).unwrap();
     })
 }
 
-fn interval_dt_div_f64(bench: &mut Bencher) {
-    let ds = IntervalDT::from_str("1928 10:10:10.123456");
+fn interval_dt_parse(bench: &mut Bencher) {
+    let fmt = Formatter::try_new(black_box("DD hh24:mi:ss.ff")).unwrap();
     bench.iter(|| {
-        let _ = black_box(black_box(ds).div_f64(black_box(64543.2345)));
+        let _n = fmt
+            .parse::<&str, IntervalDT>(black_box("12345 10:10:10.123456"))
+            .unwrap();
     })
 }
 
-fn interval_ym_mul_f64(bench: &mut Bencher) {
-    let ym = IntervalYM::from_str("1928-10");
+fn interval_dt_format(bench: &mut Bencher) {
+    let ds = IntervalDT::from_str("12345 10:10:10.123456");
+    let fmt = Formatter::try_new("dd hh24:mi:ss.ff").unwrap();
     bench.iter(|| {
-        let _ = black_box(black_box(ym).mul_f64(black_box(64543.2345)));
-    })
-}
-
-fn interval_ym_div_f64(bench: &mut Bencher) {
-    let ym = IntervalYM::from_str("1928-10");
-    bench.iter(|| {
-        let _ = black_box(black_box(ym).div_f64(black_box(64543.2345)));
+        let mut s = StackVec::<u8, 100>::new();
+        let _n = fmt.format(black_box(ds), &mut s).unwrap();
     })
 }
 
@@ -417,6 +366,58 @@ fn interval_dt_sub_interval_dt(bench: &mut Bencher) {
     let ds2 = IntervalDT::from_str("84757 13:15:17.88874");
     bench.iter(|| {
         let _ = black_box(black_box(ds1).sub_interval_dt(black_box(ds2)));
+    })
+}
+
+fn interval_dt_mul_f64(bench: &mut Bencher) {
+    let ds = IntervalDT::from_str("1928 10:10:10.123456");
+    bench.iter(|| {
+        let _ = black_box(black_box(ds).mul_f64(black_box(64543.2345)));
+    })
+}
+
+fn interval_dt_div_f64(bench: &mut Bencher) {
+    let ds = IntervalDT::from_str("1928 10:10:10.123456");
+    bench.iter(|| {
+        let _ = black_box(black_box(ds).div_f64(black_box(64543.2345)));
+    })
+}
+
+fn interval_ym_parse_format(bench: &mut Bencher) {
+    bench.iter(|| {
+        Formatter::try_new(black_box("YY-MM")).unwrap();
+    })
+}
+
+fn interval_ym_parse(bench: &mut Bencher) {
+    let fmt = Formatter::try_new(black_box("YY-MM")).unwrap();
+    bench.iter(|| {
+        let _n = fmt
+            .parse::<&str, IntervalYM>(black_box("12345-10"))
+            .unwrap();
+    })
+}
+
+fn interval_ym_format(bench: &mut Bencher) {
+    let ym = IntervalYM::from_str("12345-10");
+    let fmt = Formatter::try_new("yy-mm").unwrap();
+    bench.iter(|| {
+        let mut s = StackVec::<u8, 100>::new();
+        let _n = fmt.format(black_box(ym), &mut s).unwrap();
+    })
+}
+
+fn interval_ym_mul_f64(bench: &mut Bencher) {
+    let ym = IntervalYM::from_str("1928-10");
+    bench.iter(|| {
+        let _ = black_box(black_box(ym).mul_f64(black_box(64543.2345)));
+    })
+}
+
+fn interval_ym_div_f64(bench: &mut Bencher) {
+    let ym = IntervalYM::from_str("1928-10");
+    bench.iter(|| {
+        let _ = black_box(black_box(ym).div_f64(black_box(64543.2345)));
     })
 }
 
@@ -464,18 +465,18 @@ mod oracle_bench {
 
     pub fn oracle_date_format(bench: &mut Bencher) {
         let od = OracleDate::from_str("2020-1-1 12:12:34");
-        let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss")).unwrap());
-        let mut s = String::with_capacity(100);
+        let fmt = black_box(Formatter::try_new(black_box("yyyy")).unwrap());
         bench.iter(|| {
+            let mut s = StackVec::<u8, 100>::new();
             let _n = fmt.format(black_box(od), &mut s).unwrap();
         })
     }
 
     pub fn oracle_date_format_dow(bench: &mut Bencher) {
         let od = OracleDate::from_str("2021-8-18 12:12:34");
-        let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss")).unwrap());
-        let mut s = String::with_capacity(100);
+        let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss day")).unwrap());
         bench.iter(|| {
+            let mut s = StackVec::<u8, 100>::new();
             let _n = fmt.format(black_box(od), &mut s).unwrap();
         })
     }
@@ -536,7 +537,6 @@ benchmark_group!(
     timestamp_sub_time_100_times,
     timestamp_sub_days,
     timestamp_sub_timestamp_100_times,
-    timestamp_sub_days,
     timestamp_extract_100_times,
     timestamp_extract_year,
     timestamp_extract_month,
