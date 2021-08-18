@@ -202,22 +202,6 @@ impl NaiveDateTime {
     }
 
     #[inline]
-    fn now() -> Self {
-        let now = Local::now().naive_local();
-        NaiveDateTime {
-            year: now.year(),
-            month: now.month(),
-            day: 1,
-            hour: 0,
-            minute: 0,
-            sec: 0,
-            usec: 0,
-            ampm: None,
-            negative: false,
-        }
-    }
-
-    #[inline]
     pub const fn year(&self) -> i32 {
         self.year
     }
@@ -993,11 +977,7 @@ impl Formatter {
     ) -> Result<T> {
         let mut s = input.as_ref().as_bytes();
 
-        let mut dt = if !T::HAS_DATE {
-            NaiveDateTime::new()
-        } else {
-            NaiveDateTime::now()
-        };
+        let mut dt = NaiveDateTime::new();
 
         macro_rules! expect_char {
             ($ch: expr) => {{
@@ -1058,6 +1038,13 @@ impl Formatter {
         let mut is_fraction_set = false;
 
         let mut dow: Option<WeekDay> = None;
+        let mut now: Option<chrono::NaiveDateTime> = None;
+        let mut get_now = || {
+            if now.is_none() {
+                now = Some(Local::now().naive_local());
+            }
+            now.unwrap()
+        };
 
         for field in self.fields.iter() {
             if !FX {
@@ -1087,7 +1074,7 @@ impl Formatter {
                         } else {
                             *n as usize
                         };
-                        let (negative, year, rem) = parse_year(s, len, dt.year)?;
+                        let (negative, year, rem) = parse_year(s, len, &mut get_now)?;
                         if negative && T::HAS_DATE {
                             return Err(Error::ParseError(
                                 "(full) year must be between 1 and 9999".to_string(),
@@ -1315,6 +1302,25 @@ impl Formatter {
             ));
         }
 
+        if T::HAS_DATE {
+            match (is_year_set, is_month_set) {
+                (true, true) => {}
+                (true, false) => {
+                    let datetime_now = get_now();
+                    dt.month = datetime_now.month();
+                }
+                (false, false) => {
+                    let datetime_now = get_now();
+                    dt.year = datetime_now.year();
+                    dt.month = datetime_now.month();
+                }
+                (false, true) => {
+                    let datetime_now = get_now();
+                    dt.year = datetime_now.year();
+                }
+            }
+        }
+
         // Check if parsed day of week conflicts with the date
         if let Some(d) = dow {
             let date = Date::try_from(&dt)?;
@@ -1378,7 +1384,11 @@ fn eat_whitespaces(s: &[u8]) -> &[u8] {
 }
 
 #[inline]
-fn parse_year(input: &[u8], max_len: usize, current_year: i32) -> Result<(bool, i32, &[u8])> {
+fn parse_year<'a, T: FnMut() -> chrono::NaiveDateTime>(
+    input: &'a [u8],
+    max_len: usize,
+    get_now: &mut T,
+) -> Result<(bool, i32, &'a [u8])> {
     // todo do not allow sign element 's' before y/yy/yyy in the format string
     match max_len {
         2 => {
@@ -1387,12 +1397,16 @@ fn parse_year(input: &[u8], max_len: usize, current_year: i32) -> Result<(bool, 
             if input_len - rem.len() > 2 {
                 Ok((negative, year, rem))
             } else {
+                let now = get_now();
+                let current_year = now.year();
                 let result_year = current_year - current_year % 100 + year;
                 Ok((negative, result_year, rem))
             }
         }
         1 | 3 => {
             let (negative, year, rem) = parse_number(input, max_len)?;
+            let now = get_now();
+            let current_year = now.year();
             let result_year =
                 current_year - current_year % YEAR_MODIFIER[max_len - 1] as i32 + year;
             Ok((negative, result_year, rem))
