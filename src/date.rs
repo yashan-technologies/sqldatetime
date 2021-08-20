@@ -7,6 +7,7 @@ use crate::common::{
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{DateTime, IntervalDT, IntervalYM, Time, Timestamp};
+use chrono::{Datelike, Local};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -304,6 +305,13 @@ impl Date {
         }
         // Change to 1..=7 (Sun..=Sat)
         WeekDay::from(date as usize + 1)
+    }
+
+    /// Get local system date
+    #[inline]
+    pub fn now() -> Result<Date> {
+        let now = Local::now().naive_local();
+        Date::try_from_ymd(now.year(), now.month(), now.day())
     }
 }
 
@@ -900,5 +908,14 @@ mod tests {
         test_extract(1970, 1, 1);
         test_extract(1999, 10, 21);
         test_extract(9999, 12, 31);
+    }
+
+    #[test]
+    fn test_now() {
+        let now = Local::now().naive_local();
+        let dt = Date::now().unwrap();
+        assert_eq!(now.year() as i32, dt.year().unwrap());
+        assert_eq!(now.month() as i32, dt.month().unwrap());
+        assert_eq!(now.day() as i32, dt.day().unwrap());
     }
 }

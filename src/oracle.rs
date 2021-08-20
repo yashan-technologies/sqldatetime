@@ -2,7 +2,7 @@ use crate::common::{is_valid_timestamp, USECONDS_PER_DAY, USECONDS_PER_SECOND};
 use crate::error::{Error, Result};
 use crate::format::{DateTimeFormat, LazyFormat, NaiveDateTime};
 use crate::{Date as SqlDate, DateTime, Formatter, IntervalDT, IntervalYM, Time, Timestamp};
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Local, Timelike};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -158,6 +158,16 @@ impl Date {
     #[inline]
     pub fn sub_days(self, days: f64) -> Result<Date> {
         self.add_days(-days)
+    }
+
+    /// Get local system date
+    #[inline]
+    pub fn now() -> Result<Date> {
+        let now = Local::now().naive_local();
+        Ok(Date::new(
+            SqlDate::try_from_ymd(now.year(), now.month(), now.day())?,
+            Time::try_from_hms(now.hour(), now.minute(), now.second(), 0)?,
+        ))
     }
 }
 
@@ -1241,5 +1251,15 @@ mod tests {
                 .unwrap(),
             generate_ts(2000, 10, 3, 2, 9, 11, 7)
         );
+    }
+
+    #[test]
+    fn test_now() {
+        let now = Local::now().naive_local();
+        let dt = Date::now().unwrap();
+        assert_eq!(now.year() as i32, dt.year().unwrap());
+        assert_eq!(now.month() as i32, dt.month().unwrap());
+        assert_eq!(now.day() as i32, dt.day().unwrap());
+        assert_eq!(now.hour() as i32, dt.hour().unwrap());
     }
 }
