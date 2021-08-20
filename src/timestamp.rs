@@ -4,7 +4,7 @@ use crate::common::{is_valid_timestamp, USECONDS_PER_DAY};
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{Date, DateTime, IntervalDT, IntervalYM, Time};
-use chrono::{Datelike, Local};
+use chrono::{Datelike, Local, Timelike};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -192,6 +192,21 @@ impl Timestamp {
     #[inline]
     pub fn sub_days(self, days: f64) -> Result<Timestamp> {
         self.add_days(-days)
+    }
+
+    /// Get local system timestamp
+    #[inline]
+    pub fn now() -> Result<Timestamp> {
+        let now = Local::now().naive_local();
+        Ok(Timestamp::new(
+            Date::try_from_ymd(now.year(), now.month(), now.day())?,
+            Time::try_from_hms(
+                now.hour(),
+                now.minute(),
+                now.second(),
+                now.timestamp_subsec_micros(),
+            )?,
+        ))
     }
 }
 
@@ -1240,5 +1255,15 @@ mod tests {
         test_extract(1970, 1, 1, 12, 30, 30, 30);
         test_extract(1999, 10, 21, 12, 30, 30, 30);
         test_extract(9999, 12, 31, 23, 59, 59, 999999);
+    }
+
+    #[test]
+    fn test_now() {
+        let now = Local::now().naive_local();
+        let dt = Timestamp::now().unwrap();
+        assert_eq!(now.year() as i32, dt.year().unwrap());
+        assert_eq!(now.month() as i32, dt.month().unwrap());
+        assert_eq!(now.day() as i32, dt.day().unwrap());
+        assert_eq!(now.hour() as i32, dt.hour().unwrap());
     }
 }
