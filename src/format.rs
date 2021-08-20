@@ -18,6 +18,27 @@ const FRACTION_FACTOR: [f64; 10] = [
 
 const YEAR_MODIFIER: [u32; 4] = [10, 100, 1000, 10000];
 
+const MONTH_TABLE: [&str; 13] = [
+    "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12",
+];
+
+const HOUR_TABLE: [&str; 25] = [
+    "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15",
+    "16", "17", "18", "19", "20", "21", "22", "23", "24",
+];
+
+const DAY_TABLE: [&str; 32] = [
+    "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15",
+    "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31",
+];
+
+const MINUTE_SECOND_TABLE: [&str; 61] = [
+    "00", "01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12", "13", "14", "15",
+    "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31",
+    "32", "33", "34", "35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46", "47",
+    "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60",
+];
+
 pub const MONTH_NAME_TABLE: [[&str; 12]; 6] = [
     [
         "January",
@@ -278,6 +299,36 @@ impl NaiveDateTime {
 
             self.hour = hour24 as u32;
         }
+    }
+
+    #[inline]
+    pub const fn month_str(&self) -> &str {
+        MONTH_TABLE[self.month as usize]
+    }
+
+    #[inline]
+    pub const fn hour12_str(&self) -> &str {
+        HOUR_TABLE[self.hour12() as usize]
+    }
+
+    #[inline]
+    pub const fn hour24_str(&self) -> &str {
+        HOUR_TABLE[self.hour24() as usize]
+    }
+
+    #[inline]
+    pub const fn day_str(&self) -> &str {
+        DAY_TABLE[self.day as usize]
+    }
+
+    #[inline]
+    pub const fn minute_str(&self) -> &str {
+        MINUTE_SECOND_TABLE[self.minute as usize]
+    }
+
+    #[inline]
+    pub const fn second_str(&self) -> &str {
+        MINUTE_SECOND_TABLE[self.sec as usize]
     }
 
     #[inline]
@@ -869,46 +920,52 @@ impl Formatter {
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     };
-                    write!(w, "{:<0width$}", year, width = *n as usize)?;
+                    write_u32(&mut w, year as u32, *n as usize)?;
                 }
                 Field::Month => {
                     if T::HAS_DATE || T::IS_INTERVAL_YM {
-                        write!(w, "{:02}", dt.month())?
+                        w.write_str(dt.month_str())?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Day => {
-                    if T::HAS_DATE || T::IS_INTERVAL_DT {
-                        write!(w, "{:02}", dt.day())?
+                    if T::HAS_DATE {
+                        w.write_str(dt.day_str())?
+                    } else if T::IS_INTERVAL_DT {
+                        if dt.day() < 32 {
+                            w.write_str(dt.day_str())?
+                        } else {
+                            write!(w, "{}", dt.day())?
+                        }
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour24 => {
                     if T::HAS_TIME {
-                        write!(w, "{:02}", dt.hour24())?
+                        w.write_str(dt.hour24_str())?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Hour12 => {
                     if T::HAS_TIME && !T::IS_INTERVAL_DT {
-                        write!(w, "{:02}", dt.hour12())?
+                        w.write_str(dt.hour12_str())?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Minute => {
                     if T::HAS_TIME {
-                        write!(w, "{:02}", dt.minute())?
+                        w.write_str(dt.minute_str())?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::Second => {
                     if T::HAS_TIME {
-                        write!(w, "{:02}", dt.sec())?
+                        w.write_str(dt.second_str())?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
@@ -916,28 +973,28 @@ impl Formatter {
                 Field::Fraction(p) => {
                     if T::HAS_FRACTION {
                         let p = p.unwrap_or(6);
-                        write!(w, "{:<0width$}", dt.fraction(p), width = p as usize)?
+                        write_u32(&mut w, dt.fraction(p), p as usize)?;
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::AmPm(am_pm) => {
                     if T::HAS_TIME && !T::IS_INTERVAL_DT {
-                        write!(w, "{}", am_pm.format(dt.hour24()))?
+                        w.write_str(am_pm.format(dt.hour24()))?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::MonthName(style) => {
                     if T::HAS_DATE {
-                        write!(w, "{}", dt.month_name(*style))?
+                        w.write_str(dt.month_name(*style))?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
                 }
                 Field::DayName(style) => {
                     if T::HAS_DATE {
-                        write!(w, "{}", dt.week_day_name(datetime.date(), *style)?)?
+                        w.write_str(dt.week_day_name(datetime.date(), *style)?)?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
@@ -1335,6 +1392,32 @@ impl Formatter {
     }
 }
 
+fn write_u32<W: fmt::Write>(mut w: W, value: u32, width: usize) -> Result<()> {
+    debug_assert!(width < 11 && width > 0);
+    let mut buf: [u8; 11] = [b'0'; 11];
+    let mut index: usize = 10;
+
+    let mut val = value;
+    while val >= 10 {
+        let v = val % 10;
+        val /= 10;
+
+        buf[index] = v as u8 + b'0';
+        index -= 1;
+    }
+
+    buf[index] = val as u8 + b'0';
+
+    let len = 11 - index;
+    if width > len {
+        index -= width - len;
+    }
+    let s = unsafe { std::str::from_utf8_unchecked(&buf[index..11]) };
+
+    w.write_str(s)?;
+    Ok(())
+}
+
 #[inline]
 fn expect_char(s: &[u8], expected: u8) -> bool {
     matches!(s.first(), Some(ch) if *ch == expected)
@@ -1598,5 +1681,47 @@ mod tests {
             "                                                             "
         )
         .is_ok());
+    }
+
+    #[test]
+    fn generate_array() {
+        let mut res = String::new();
+        res.push('[');
+        for i in 0..10000 {
+            res.push('"');
+            if i < 10 {
+                res.push('0');
+            }
+            res.push_str(&i.to_string());
+            res.push('"');
+            res.push_str(", ")
+        }
+        res.push(']');
+        println!("{}", res);
+    }
+
+    #[test]
+    fn test_write_u32() {
+        fn assert(val: u32, expected: &str, width: usize) {
+            let mut s = String::with_capacity(10);
+            write_u32(&mut s, val, width).unwrap();
+            assert_eq!(expected, &s);
+        }
+
+        assert(0, "000000000", 9);
+        assert(0, "00000", 5);
+        assert(0, "00", 2);
+        assert(1, "000000001", 9);
+        assert(1, "1", 1);
+        assert(1, "01", 2);
+        assert(1, "001", 3);
+        assert(23457, "23457", 3);
+        assert(10, "000000010", 9);
+        assert(11, "0000000011", 10);
+        assert(101, "0000000101", 10);
+        assert(10101, "000010101", 9);
+        assert(123456789, "0123456789", 10);
+        assert(123456789, "123456789", 9);
+        assert(u32::MAX, "4294967295", 10);
     }
 }
