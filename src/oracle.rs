@@ -1,7 +1,9 @@
 use crate::common::{is_valid_timestamp, USECONDS_PER_DAY, USECONDS_PER_SECOND};
 use crate::error::{Error, Result};
 use crate::format::{DateTimeFormat, LazyFormat, NaiveDateTime};
-use crate::{Date as SqlDate, DateTime, Formatter, IntervalDT, IntervalYM, Time, Timestamp};
+use crate::{
+    Date as SqlDate, DateTime, Formatter, IntervalDT, IntervalYM, Round, Time, Timestamp, Trunc,
+};
 use chrono::{Datelike, Local, Timelike};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -168,6 +170,130 @@ impl Date {
             SqlDate::try_from_ymd(now.year(), now.month(), now.day())?,
             Time::try_from_hms(now.hour(), now.minute(), now.second(), 0)?,
         ))
+    }
+}
+
+impl Trunc for Date {
+    #[inline]
+    fn trunc_century(self) -> Result<Self> {
+        Ok(self.0.trunc_century()?.into())
+    }
+
+    #[inline]
+    fn trunc_year(self) -> Result<Self> {
+        Ok(self.0.trunc_year()?.into())
+    }
+
+    #[inline]
+    fn trunc_iso_year(self) -> Result<Self> {
+        Ok(self.0.trunc_iso_year()?.into())
+    }
+
+    #[inline]
+    fn trunc_quarter(self) -> Result<Self> {
+        Ok(self.0.trunc_quarter()?.into())
+    }
+
+    #[inline]
+    fn trunc_month(self) -> Result<Self> {
+        Ok(self.0.trunc_month()?.into())
+    }
+
+    #[inline]
+    fn trunc_week(self) -> Result<Self> {
+        Ok(self.0.trunc_week()?.into())
+    }
+
+    #[inline]
+    fn trunc_iso_week(self) -> Result<Self> {
+        Ok(self.0.trunc_iso_week()?.into())
+    }
+
+    #[inline]
+    fn trunc_month_start_week(self) -> Result<Self> {
+        Ok(self.0.trunc_month_start_week()?.into())
+    }
+
+    #[inline]
+    fn trunc_day(self) -> Result<Self> {
+        Ok(self.0.trunc_day()?.into())
+    }
+
+    #[inline]
+    fn trunc_sunday_start_week(self) -> Result<Self> {
+        Ok(self.0.trunc_sunday_start_week()?.into())
+    }
+
+    #[inline]
+    fn trunc_hour(self) -> Result<Self> {
+        Ok(self.0.trunc_hour()?.into())
+    }
+
+    #[inline]
+    fn trunc_minute(self) -> Result<Self> {
+        Ok(self.0.trunc_minute()?.into())
+    }
+}
+
+impl Round for Date {
+    #[inline]
+    fn round_century(self) -> Result<Self> {
+        Ok(self.0.round_century()?.into())
+    }
+
+    #[inline]
+    fn round_year(self) -> Result<Self> {
+        Ok(self.0.round_year()?.into())
+    }
+
+    #[inline]
+    fn round_iso_year(self) -> Result<Self> {
+        Ok(self.0.round_iso_year()?.into())
+    }
+
+    #[inline]
+    fn round_quarter(self) -> Result<Self> {
+        Ok(self.0.round_quarter()?.into())
+    }
+
+    #[inline]
+    fn round_month(self) -> Result<Self> {
+        Ok(self.0.round_month()?.into())
+    }
+
+    #[inline]
+    fn round_week(self) -> Result<Self> {
+        Ok(self.0.round_week()?.into())
+    }
+
+    #[inline]
+    fn round_iso_week(self) -> Result<Self> {
+        Ok(self.0.round_iso_week()?.into())
+    }
+
+    #[inline]
+    fn round_month_start_week(self) -> Result<Self> {
+        Ok(self.0.round_month_start_week()?.into())
+    }
+
+    #[inline]
+    fn round_day(self) -> Result<Self> {
+        Ok(self.0.round_day()?.into())
+    }
+
+    #[inline]
+    fn round_sunday_start_week(self) -> Result<Self> {
+        Ok(self.0.round_sunday_start_week()?.into())
+    }
+
+    #[inline]
+    fn round_hour(self) -> Result<Self> {
+        Ok(self.0.round_hour()?.into())
+    }
+
+    #[inline]
+    fn round_minute(self) -> Result<Self> {
+        Ok(self.0.round_minute()?.into())
     }
 }
 
@@ -1261,5 +1387,131 @@ mod tests {
         assert_eq!(now.month() as i32, dt.month().unwrap());
         assert_eq!(now.day() as i32, dt.day().unwrap());
         assert_eq!(now.hour() as i32, dt.hour().unwrap());
+    }
+
+    #[test]
+    fn test_trunc() {
+        let dt = generate_date(1996, 10, 24, 0, 0, 0);
+
+        assert_eq!(
+            generate_date(1901, 1, 1, 0, 0, 0),
+            dt.trunc_century().unwrap()
+        );
+        assert_eq!(generate_date(1996, 1, 1, 0, 0, 0), dt.trunc_year().unwrap());
+        assert_eq!(
+            generate_date(1996, 1, 1, 0, 0, 0),
+            dt.trunc_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 1, 0, 0, 0),
+            dt.trunc_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 1, 0, 0, 0),
+            dt.trunc_month().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 21, 0, 0, 0),
+            dt.trunc_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 21, 0, 0, 0),
+            dt.trunc_iso_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 22, 0, 0, 0),
+            dt.trunc_month_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 24, 0, 0, 0),
+            dt.trunc_day().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 20, 0, 0, 0),
+            dt.trunc_sunday_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 4, 11, 13, 0, 0),
+            generate_date(2015, 4, 11, 13, 59, 59).trunc_hour().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 4, 11, 13, 59, 0),
+            generate_date(2015, 4, 11, 13, 59, 59)
+                .trunc_minute()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_round() {
+        let dt = generate_date(1996, 10, 24, 0, 0, 0);
+
+        assert_eq!(
+            generate_date(2001, 1, 1, 0, 0, 0),
+            dt.round_century().unwrap()
+        );
+        assert_eq!(generate_date(1997, 1, 1, 0, 0, 0), dt.round_year().unwrap());
+        assert_eq!(
+            generate_date(1996, 12, 30, 0, 0, 0),
+            dt.round_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 1, 0, 0, 0),
+            dt.round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_date(2022, 1, 1, 0, 0, 0),
+            generate_date(2021, 11, 16, 0, 0, 0)
+                .round_quarter()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 11, 1, 0, 0, 0),
+            dt.round_month().unwrap()
+        );
+        assert_eq!(
+            generate_date(2021, 10, 15, 0, 0, 0),
+            generate_date(2021, 10, 13, 0, 0, 0).round_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2021, 10, 18, 0, 0, 0),
+            generate_date(2021, 10, 15, 0, 0, 0)
+                .round_iso_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_date(2021, 11, 8, 0, 0, 0),
+            generate_date(2021, 11, 5, 0, 0, 0)
+                .round_month_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 25, 0, 0, 0),
+            generate_date(1996, 10, 24, 12, 0, 0).round_day().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 27, 0, 0, 0),
+            dt.round_sunday_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 3, 12, 0, 0),
+            generate_date(2015, 3, 3, 11, 30, 59).round_hour().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 4, 0, 0, 0),
+            generate_date(2015, 3, 3, 23, 30, 0).round_hour().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 3, 11, 30, 0),
+            generate_date(2015, 3, 3, 11, 29, 30)
+                .round_minute()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 4, 0, 0, 0),
+            generate_date(2015, 3, 3, 23, 59, 30)
+                .round_minute()
+                .unwrap()
+        );
     }
 }

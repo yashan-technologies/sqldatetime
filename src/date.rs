@@ -6,13 +6,26 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{DateTime, IntervalDT, IntervalYM, Time, Timestamp};
+use crate::{DateTime, IntervalDT, IntervalYM, Round, Time, Timestamp, Trunc};
 use chrono::{Datelike, Local};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
 
+type DateSubMethod = fn(Date, i32) -> Result<Date>;
+
 pub const UNIX_EPOCH_DOW: WeekDay = WeekDay::Thursday;
+const ROUNDS_UP_DAY: u32 = 16;
+const ISO_YEAR_TABLE: [(DateSubMethod, i32); 8] = [
+    (sub_to_date, 0), // Unreachable
+    (sub_to_date, -1),
+    (current_date, 0),
+    (sub_to_date, 1),
+    (sub_to_date, 2),
+    (sub_to_date, 3),
+    (sub_to_date, -3),
+    (sub_to_date, -2),
+];
 
 /// Weekdays in the order of 1..=7 Sun..=Sat for formatting and calculation use
 #[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
@@ -312,6 +325,295 @@ impl Date {
     pub fn now() -> Result<Date> {
         let now = Local::now().naive_local();
         Date::try_from_ymd(now.year(), now.month(), now.day())
+    }
+}
+
+impl Trunc for Date {
+    #[inline]
+    fn trunc_century(self) -> Result<Self> {
+        let mut year = self.year().unwrap();
+
+        if year % 100 == 0 {
+            year -= 1;
+        }
+
+        year = year / 100 * 100 + 1;
+        Ok(unsafe { Date::from_ymd_unchecked(year, 1, 1) })
+    }
+
+    #[inline]
+    fn trunc_year(self) -> Result<Self> {
+        Ok(unsafe { Date::from_ymd_unchecked(self.year().unwrap(), 1, 1) })
+    }
+
+    #[inline]
+    fn trunc_iso_year(self) -> Result<Self> {
+        let first_date = unsafe { Date::from_ymd_unchecked(self.year().unwrap(), 1, 1) };
+        let week_day = first_date.day_of_week() as usize;
+        let (to_first_date_of_week, remain_day) = ISO_YEAR_TABLE[week_day];
+        to_first_date_of_week(first_date, remain_day)
+    }
+
+    #[inline]
+    fn trunc_quarter(self) -> Result<Self> {
+        const QUARTER_FIRST_MONTH: [u32; 12] = [1, 1, 1, 4, 4, 4, 7, 7, 7, 10, 10, 10];
+
+        let (year, month, _) = self.extract();
+        let quarter_month = QUARTER_FIRST_MONTH[month as usize - 1];
+
+        Ok(unsafe { Date::from_ymd_unchecked(year, quarter_month, 1) })
+    }
+
+    #[inline]
+    fn trunc_month(self) -> Result<Self> {
+        let (year, month, _) = self.extract();
+        Ok(unsafe { Date::from_ymd_unchecked(year, month, 1) })
+    }
+
+    #[inline]
+    fn trunc_week(self) -> Result<Self> {
+        let trunc_day =
+            self.sub_date(unsafe { Date::from_ymd_unchecked(self.year().unwrap(), 1, 1) }) % 7;
+        let res_date = self.sub_days(trunc_day)?;
+        Ok(res_date)
+    }
+
+    #[inline]
+    fn trunc_iso_week(self) -> Result<Self> {
+        const ISO_WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (sub_to_date, 0), // Unreachable
+            (sub_to_date, 6),
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, 4),
+            (sub_to_date, 5),
+        ];
+
+        let week_day = self.day_of_week() as usize;
+        let (to_first_date_of_week, remain_day) = ISO_WEEK_TABLE[week_day];
+        to_first_date_of_week(self, remain_day)
+    }
+
+    #[inline]
+    fn trunc_month_start_week(self) -> Result<Self> {
+        let remain_day = self.day().unwrap() % 7;
+        let trunc_day = if remain_day == 0 { 6 } else { remain_day - 1 };
+        let res_date = self.sub_days(trunc_day)?;
+        Ok(res_date)
+    }
+
+    #[inline]
+    fn trunc_day(self) -> Result<Self> {
+        Ok(self)
+    }
+
+    #[inline]
+    fn trunc_sunday_start_week(self) -> Result<Self> {
+        let res_date = self.sub_days(self.day_of_week() as i32 - 1)?;
+        Ok(res_date)
+    }
+
+    #[inline]
+    fn trunc_hour(self) -> Result<Self> {
+        Ok(self)
+    }
+
+    #[inline]
+    fn trunc_minute(self) -> Result<Self> {
+        Ok(self)
+    }
+}
+
+#[inline(always)]
+fn current_date(date: Date, _sub_day: i32) -> Result<Date> {
+    Ok(date)
+}
+
+#[inline(always)]
+fn sub_to_date(date: Date, sub_day: i32) -> Result<Date> {
+    date.sub_days(sub_day)
+}
+
+impl Round for Date {
+    #[inline]
+    fn round_century(self) -> Result<Self> {
+        let input_year = self.year().unwrap();
+        if input_year > DATE_MAX_YEAR - 50 {
+            return Err(Error::DateOutOfRange);
+        }
+
+        let mut century = input_year / 100;
+        if input_year % 100 == 0 {
+            century -= 1;
+        } else if input_year % 100 > 50 {
+            century += 1;
+        }
+
+        let res_year = century * 100 + 1;
+        Ok(unsafe { Date::from_ymd_unchecked(res_year, 1, 1) })
+    }
+
+    #[inline]
+    fn round_year(self) -> Result<Self> {
+        let (mut year, month, _) = self.extract();
+        if month >= 7 {
+            if year == DATE_MAX_YEAR {
+                return Err(Error::DateOutOfRange);
+            }
+            year += 1;
+        }
+        Ok(unsafe { Date::from_ymd_unchecked(year, 1, 1) })
+    }
+
+    #[inline]
+    fn round_iso_year(self) -> Result<Self> {
+        let (year, month, _) = self.extract();
+        if month < 7 {
+            self.trunc_iso_year()
+        } else {
+            if year == DATE_MAX_YEAR {
+                return Err(Error::DateOutOfRange);
+            }
+
+            let first_date = unsafe { Date::from_ymd_unchecked(year + 1, 1, 1) };
+            let week_day = first_date.day_of_week() as usize;
+            let (to_first_date_of_week, remain_day) = ISO_YEAR_TABLE[week_day];
+            to_first_date_of_week(first_date, remain_day)
+        }
+    }
+
+    #[inline]
+    fn round_quarter(self) -> Result<Self> {
+        const QUARTER_ROUND_MONTH: [u32; 12] = [1, 4, 4, 4, 7, 7, 7, 10, 10, 10, 1, 1];
+        const QUARTER_TRUNC_MONTH: [u32; 12] = [1, 1, 4, 4, 4, 7, 7, 7, 10, 10, 10, 1];
+
+        let (mut year, month, day) = self.extract();
+        let is_round = day >= ROUNDS_UP_DAY;
+        if year == DATE_MAX_YEAR && is_round {
+            return Err(Error::DateOutOfRange);
+        }
+
+        let index = month as usize - 1;
+        let quarter_month = if is_round {
+            if month == 11 {
+                year += 1;
+            }
+            QUARTER_ROUND_MONTH[index]
+        } else {
+            if month == 12 {
+                year += 1;
+            }
+            QUARTER_TRUNC_MONTH[index]
+        };
+
+        Ok(unsafe { Date::from_ymd_unchecked(year, quarter_month, 1) })
+    }
+
+    #[inline]
+    fn round_month(self) -> Result<Self> {
+        let (mut year, mut month, day) = self.extract();
+        if day >= ROUNDS_UP_DAY {
+            if month == 12 {
+                if year == DATE_MAX_YEAR {
+                    return Err(Error::DateOutOfRange);
+                }
+                year += 1;
+                month = 1;
+            } else {
+                month += 1;
+            }
+        }
+        Ok(unsafe { Date::from_ymd_unchecked(year, month, 1) })
+    }
+
+    #[inline]
+    fn round_week(self) -> Result<Self> {
+        const WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, -3),
+            (sub_to_date, -2),
+            (sub_to_date, -1),
+            (sub_to_date, 0), // Unreachable
+        ];
+
+        let week_day =
+            self.sub_date(unsafe { Date::from_ymd_unchecked(self.year().unwrap(), 1, 1) }) % 7;
+        let (to_first_date_of_week, remain_day) = WEEK_TABLE[week_day as usize];
+        to_first_date_of_week(self, remain_day)
+    }
+
+    #[inline]
+    fn round_iso_week(self) -> Result<Self> {
+        const ISO_WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (sub_to_date, 0), // Unreachable
+            (sub_to_date, -1),
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, -3),
+            (sub_to_date, -2),
+        ];
+
+        let week_day = self.day_of_week() as usize;
+        let (to_first_date_of_week, remain_day) = ISO_WEEK_TABLE[week_day];
+        to_first_date_of_week(self, remain_day)
+    }
+
+    #[inline]
+    fn round_month_start_week(self) -> Result<Self> {
+        const MONTH_START_WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (sub_to_date, -1),
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, -3),
+            (sub_to_date, -2),
+            (sub_to_date, 0), // Unreachable
+        ];
+
+        let week_day = self.day().unwrap() % 7;
+        let (to_first_date_of_week, remain_day) = MONTH_START_WEEK_TABLE[week_day as usize];
+        to_first_date_of_week(self, remain_day)
+    }
+
+    #[inline]
+    fn round_day(self) -> Result<Self> {
+        Ok(self)
+    }
+
+    #[inline]
+    fn round_sunday_start_week(self) -> Result<Self> {
+        const SUNDAY_START_WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (sub_to_date, 0), // Unreachable
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, -3),
+            (sub_to_date, -2),
+            (sub_to_date, -1),
+        ];
+
+        let week_day = self.day_of_week() as usize;
+        let (to_first_date_of_week, remain_day) = SUNDAY_START_WEEK_TABLE[week_day];
+        to_first_date_of_week(self, remain_day)
+    }
+
+    #[inline]
+    fn round_hour(self) -> Result<Self> {
+        Ok(self)
+    }
+
+    #[inline]
+    fn round_minute(self) -> Result<Self> {
+        Ok(self)
     }
 }
 
@@ -917,5 +1219,90 @@ mod tests {
         assert_eq!(now.year() as i32, dt.year().unwrap());
         assert_eq!(now.month() as i32, dt.month().unwrap());
         assert_eq!(now.day() as i32, dt.day().unwrap());
+    }
+
+    #[test]
+    fn test_trunc() {
+        let dt = generate_date(1996, 10, 24);
+
+        assert_eq!(generate_date(1901, 1, 1), dt.trunc_century().unwrap());
+        assert_eq!(generate_date(1996, 1, 1), dt.trunc_year().unwrap());
+        assert_eq!(generate_date(1996, 1, 1), dt.trunc_iso_year().unwrap());
+        assert_eq!(generate_date(1996, 10, 1), dt.trunc_quarter().unwrap());
+        assert_eq!(generate_date(1996, 10, 1), dt.trunc_month().unwrap());
+        assert_eq!(generate_date(1996, 10, 21), dt.trunc_week().unwrap());
+        assert_eq!(generate_date(1996, 10, 21), dt.trunc_iso_week().unwrap());
+        assert_eq!(
+            generate_date(1996, 10, 22),
+            dt.trunc_month_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 1),
+            generate_date(1996, 10, 7).trunc_month_start_week().unwrap()
+        );
+        assert_eq!(generate_date(1996, 10, 24), dt.trunc_day().unwrap());
+        assert_eq!(
+            generate_date(1996, 10, 20),
+            dt.trunc_sunday_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 4, 11),
+            generate_date(2015, 4, 11).trunc_hour().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 4, 11),
+            generate_date(2015, 4, 11).trunc_minute().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_round() {
+        let dt = generate_date(1996, 10, 24);
+
+        assert_eq!(generate_date(2001, 1, 1), dt.round_century().unwrap());
+        assert_eq!(generate_date(1997, 1, 1), dt.round_year().unwrap());
+        assert_eq!(generate_date(1996, 12, 30), dt.round_iso_year().unwrap());
+        assert_eq!(generate_date(1996, 10, 1), dt.round_quarter().unwrap());
+        assert_eq!(
+            generate_date(2022, 1, 1),
+            generate_date(2021, 11, 16).round_quarter().unwrap()
+        );
+        assert_eq!(generate_date(1996, 11, 1), dt.round_month().unwrap());
+        assert_eq!(
+            generate_date(2021, 10, 15),
+            generate_date(2021, 10, 13).round_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2021, 10, 18),
+            generate_date(2021, 10, 15).round_iso_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2021, 11, 8),
+            generate_date(2021, 11, 5).round_month_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 24),
+            generate_date(1996, 10, 24).round_day().unwrap()
+        );
+        assert_eq!(
+            generate_date(1996, 10, 27),
+            dt.round_sunday_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 3),
+            generate_date(2015, 3, 3).round_hour().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 3),
+            generate_date(2015, 3, 3).round_hour().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 3),
+            generate_date(2015, 3, 3).round_minute().unwrap()
+        );
+        assert_eq!(
+            generate_date(2015, 3, 3),
+            generate_date(2015, 3, 3).round_minute().unwrap()
+        );
     }
 }

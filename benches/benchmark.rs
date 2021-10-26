@@ -16,9 +16,12 @@
 
 #[cfg(feature = "oracle")]
 use crate::oracle_bench::*;
-use bencher::{benchmark_group, benchmark_main, black_box, Bencher};
-use sqldatetime::{Date, DateTime, Formatter, IntervalDT, IntervalYM, Time, Timestamp};
+use sqldatetime::{
+    Date, DateTime, Formatter, IntervalDT, IntervalYM, Round, Time, Timestamp, Trunc,
+};
 use stack_buf::StackVec;
+
+use bencher::{benchmark_group, benchmark_main, black_box, Bencher};
 
 trait FromStr {
     fn from_str(input: &str) -> Self;
@@ -283,6 +286,246 @@ fn date_dow(bench: &mut Bencher) {
     })
 }
 
+pub fn date_trunc_century_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_century().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_year_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_year().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_iso_year_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_iso_year().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_quarter_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_quarter().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_month_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_month().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_iso_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_iso_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_month_start_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_month_start_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_day_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_day().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_sunday_start_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_sunday_start_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_hour_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_hour().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_trunc_minute_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.trunc_minute().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_century_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_century().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_year_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_year().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_iso_year_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_iso_year().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_quarter_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_quarter().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_month_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_month().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_iso_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_iso_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_month_start_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_month_start_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_day_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_day().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_sunday_start_week_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_sunday_start_week().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_hour_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_hour().unwrap();
+            black_box(x);
+        }
+    })
+}
+
+pub fn date_round_minute_100_times(bench: &mut Bencher) {
+    let dt = Date::from_str("5555-6-6");
+    bench.iter(|| {
+        for _ in 0..100 {
+            let x = dt.round_minute().unwrap();
+            black_box(x);
+        }
+    })
+}
+
 fn time_parse_format(bench: &mut Bencher) {
     bench.iter(|| {
         Formatter::try_new(black_box("hh24:mi:ss.ff")).unwrap();
@@ -433,7 +676,7 @@ fn interval_ym_sub_interval_ym(bench: &mut Bencher) {
 mod oracle_bench {
 
     use super::*;
-    use sqldatetime::OracleDate;
+    use sqldatetime::{OracleDate, Round, Trunc};
 
     impl FromStr for OracleDate {
         fn from_str(input: &str) -> Self {
@@ -509,6 +752,246 @@ mod oracle_bench {
             }
         })
     }
+
+    pub fn oracle_date_trunc_century_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_century().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_year_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_year().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_iso_year_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_iso_year().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_quarter_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_quarter().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_month_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_month().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_iso_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_iso_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_month_start_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_month_start_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_day_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_day().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_sunday_start_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_sunday_start_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_hour_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_hour().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_trunc_minute_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.trunc_minute().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_century_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_century().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_year_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_year().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_iso_year_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_iso_year().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_quarter_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-16 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_quarter().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_month_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_month().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_iso_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_iso_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_month_start_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_month_start_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_day_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_day().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_sunday_start_week_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_sunday_start_week().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_hour_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_hour().unwrap();
+                black_box(x);
+            }
+        })
+    }
+
+    pub fn oracle_date_round_minute_100_times(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od.round_minute().unwrap();
+                black_box(x);
+            }
+        })
+    }
 }
 
 #[cfg(feature = "oracle")]
@@ -522,6 +1005,30 @@ benchmark_group!(
     oracle_date_sub_interval_dt_100_times,
     oracle_date_sub_interval_ym,
     oracle_date_sub_oracle_date_100_times,
+    oracle_date_trunc_century_100_times,
+    oracle_date_trunc_year_100_times,
+    oracle_date_trunc_iso_year_100_times,
+    oracle_date_trunc_quarter_100_times,
+    oracle_date_trunc_month_100_times,
+    oracle_date_trunc_week_100_times,
+    oracle_date_trunc_iso_week_100_times,
+    oracle_date_trunc_month_start_week_100_times,
+    oracle_date_trunc_day_100_times,
+    oracle_date_trunc_sunday_start_week_100_times,
+    oracle_date_trunc_hour_100_times,
+    oracle_date_trunc_minute_100_times,
+    oracle_date_round_century_100_times,
+    oracle_date_round_year_100_times,
+    oracle_date_round_iso_year_100_times,
+    oracle_date_round_quarter_100_times,
+    oracle_date_round_month_100_times,
+    oracle_date_round_week_100_times,
+    oracle_date_round_iso_week_100_times,
+    oracle_date_round_month_start_week_100_times,
+    oracle_date_round_day_100_times,
+    oracle_date_round_sunday_start_week_100_times,
+    oracle_date_round_hour_100_times,
+    oracle_date_round_minute_100_times,
 );
 
 benchmark_group!(
@@ -554,6 +1061,30 @@ benchmark_group!(
     date_extract,
     date_dow,
     date_add_time_100_times,
+    date_trunc_century_100_times,
+    date_trunc_year_100_times,
+    date_trunc_iso_year_100_times,
+    date_trunc_quarter_100_times,
+    date_trunc_month_100_times,
+    date_trunc_week_100_times,
+    date_trunc_iso_week_100_times,
+    date_trunc_month_start_week_100_times,
+    date_trunc_day_100_times,
+    date_trunc_sunday_start_week_100_times,
+    date_trunc_hour_100_times,
+    date_trunc_minute_100_times,
+    date_round_century_100_times,
+    date_round_year_100_times,
+    date_round_iso_year_100_times,
+    date_round_quarter_100_times,
+    date_round_month_100_times,
+    date_round_week_100_times,
+    date_round_iso_week_100_times,
+    date_round_month_start_week_100_times,
+    date_round_day_100_times,
+    date_round_sunday_start_week_100_times,
+    date_round_hour_100_times,
+    date_round_minute_100_times,
     time_parse_format,
     time_parse,
     time_format,

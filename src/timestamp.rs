@@ -3,7 +3,7 @@
 use crate::common::{is_valid_timestamp, USECONDS_PER_DAY};
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
-use crate::{Date, DateTime, IntervalDT, IntervalYM, Time};
+use crate::{Date, DateTime, IntervalDT, IntervalYM, Round, Time, Trunc};
 use chrono::{Datelike, Local, Timelike};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
@@ -210,6 +210,165 @@ impl Timestamp {
     }
 }
 
+impl Trunc for Timestamp {
+    #[inline]
+    fn trunc_century(self) -> Result<Self> {
+        Ok(self.date().trunc_century()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_year(self) -> Result<Self> {
+        Ok(self.date().trunc_year()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_iso_year(self) -> Result<Self> {
+        Ok(self.date().trunc_iso_year()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_quarter(self) -> Result<Self> {
+        Ok(self.date().trunc_quarter()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_month(self) -> Result<Self> {
+        Ok(self.date().trunc_month()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_week(self) -> Result<Self> {
+        Ok(self.date().trunc_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_iso_week(self) -> Result<Self> {
+        Ok(self.date().trunc_iso_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_month_start_week(self) -> Result<Self> {
+        Ok(self.date().trunc_month_start_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_day(self) -> Result<Self> {
+        Ok(self.date().and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_sunday_start_week(self) -> Result<Self> {
+        Ok(self.date().trunc_sunday_start_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn trunc_hour(self) -> Result<Self> {
+        Ok(self
+            .date()
+            .and_time(unsafe { Time::from_hms_unchecked(self.hour().unwrap() as u32, 0, 0, 0) }))
+    }
+
+    #[inline]
+    fn trunc_minute(self) -> Result<Self> {
+        let (hour, minute, _, _) = self.time().extract();
+        Ok(self
+            .date()
+            .and_time(unsafe { Time::from_hms_unchecked(hour, minute, 0, 0) }))
+    }
+}
+
+impl Round for Timestamp {
+    #[inline]
+    fn round_century(self) -> Result<Self> {
+        Ok(self.date().round_century()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_year(self) -> Result<Self> {
+        Ok(self.date().round_year()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_iso_year(self) -> Result<Self> {
+        Ok(self.date().round_iso_year()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_quarter(self) -> Result<Self> {
+        Ok(self.date().round_quarter()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_month(self) -> Result<Self> {
+        Ok(self.date().round_month()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_week(self) -> Result<Self> {
+        Ok(self.date().round_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_iso_week(self) -> Result<Self> {
+        Ok(self.date().round_iso_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_month_start_week(self) -> Result<Self> {
+        Ok(self.date().round_month_start_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_day(self) -> Result<Self> {
+        let mut date = self.date();
+        if self.hour().unwrap() >= 12 {
+            date = date.add_days(1)?;
+        }
+        Ok(date.and_zero_time())
+    }
+
+    #[inline]
+    fn round_sunday_start_week(self) -> Result<Self> {
+        Ok(self.date().round_sunday_start_week()?.and_zero_time())
+    }
+
+    #[inline]
+    fn round_hour(self) -> Result<Self> {
+        let mut date = self.date();
+        let (mut hour, minute, _, _) = self.time().extract();
+        if minute >= 30 {
+            if hour >= 23 {
+                date = date.add_days(1)?;
+                hour = 0;
+            } else {
+                hour += 1
+            }
+        }
+        Ok(date.and_time(unsafe { Time::from_hms_unchecked(hour as u32, 0, 0, 0) }))
+    }
+
+    #[inline]
+    fn round_minute(self) -> Result<Self> {
+        let mut date = self.date();
+        let (mut hour, mut minute, sec, _) = self.time().extract();
+        if sec >= 30 {
+            if minute == 59 {
+                if hour == 23 {
+                    date = date.add_days(1)?;
+                    hour = 0;
+                } else {
+                    hour += 1;
+                }
+                minute = 0;
+            } else {
+                minute += 1;
+            }
+        }
+
+        Ok(date.and_time(unsafe { Time::from_hms_unchecked(hour, minute, 0, 0) }))
+    }
+}
+
 impl From<Timestamp> for NaiveDateTime {
     #[inline]
     fn from(ts: Timestamp) -> Self {
@@ -314,6 +473,7 @@ impl DateTime for Timestamp {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::DATE_MAX_YEAR;
     use chrono::{Datelike, Local};
 
     fn generate_ts(
@@ -1265,5 +1425,216 @@ mod tests {
         assert_eq!(now.month() as i32, dt.month().unwrap());
         assert_eq!(now.day() as i32, dt.day().unwrap());
         assert_eq!(now.hour() as i32, dt.hour().unwrap());
+    }
+
+    #[test]
+    fn test_round_error() {
+        let ts = generate_ts(DATE_MAX_YEAR, 12, 31, 23, 59, 30, 0);
+
+        // Would not overflow
+        assert!(ts.round_week().is_ok());
+        assert!(ts.round_month_start_week().is_ok());
+
+        assert!(ts.round_century().is_err());
+        assert!(ts.round_year().is_err());
+        assert!(ts.round_iso_year().is_err());
+        assert!(ts.round_quarter().is_err());
+        assert!(ts.round_month().is_err());
+        assert!(ts.round_iso_week().is_err());
+        assert!(ts.round_day().is_err());
+        assert!(ts.round_sunday_start_week().is_err());
+        assert!(ts.round_hour().is_err());
+        assert!(ts.round_minute().is_err());
+    }
+
+    #[test]
+    fn test_trunc() {
+        let ts = generate_ts(1996, 10, 24, 0, 0, 0, 0);
+
+        // Century
+        assert_eq!(
+            generate_ts(1901, 1, 1, 0, 0, 0, 0),
+            ts.trunc_century().unwrap()
+        );
+        assert_eq!(
+            generate_ts(1801, 1, 1, 0, 0, 0, 0),
+            generate_ts(1900, 10, 24, 0, 0, 0, 0)
+                .trunc_century()
+                .unwrap()
+        );
+
+        // Year
+        assert_eq!(
+            generate_ts(1996, 1, 1, 0, 0, 0, 0),
+            ts.trunc_year().unwrap()
+        );
+
+        // ISO Year
+        assert_eq!(
+            generate_ts(1996, 1, 1, 0, 0, 0, 0),
+            ts.trunc_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 1, 4, 0, 0, 0, 0),
+            generate_ts(2021, 10, 24, 0, 0, 0, 0)
+                .trunc_iso_year()
+                .unwrap()
+        );
+
+        // Quarter
+        assert_eq!(
+            generate_ts(1996, 10, 1, 0, 0, 0, 0),
+            ts.trunc_quarter().unwrap()
+        );
+
+        // Month
+        assert_eq!(
+            generate_ts(1996, 10, 1, 0, 0, 0, 0),
+            ts.trunc_month().unwrap()
+        );
+
+        // Week
+        assert_eq!(
+            generate_ts(1996, 10, 21, 0, 0, 0, 0),
+            ts.trunc_week().unwrap()
+        );
+
+        // ISO Week
+        assert_eq!(
+            generate_ts(1996, 10, 21, 0, 0, 0, 0),
+            ts.trunc_iso_week().unwrap()
+        );
+
+        // The first day of the month as the first day of week
+        assert_eq!(
+            generate_ts(1996, 10, 22, 0, 0, 0, 0),
+            ts.trunc_month_start_week().unwrap()
+        );
+
+        // Day
+        assert_eq!(
+            generate_ts(1996, 10, 24, 0, 0, 0, 0),
+            ts.trunc_day().unwrap()
+        );
+
+        // Start day of the week
+        assert_eq!(
+            generate_ts(1996, 10, 20, 0, 0, 0, 0),
+            ts.trunc_sunday_start_week().unwrap()
+        );
+
+        // Hour
+        assert_eq!(
+            generate_ts(2015, 4, 11, 13, 0, 0, 0),
+            generate_ts(2015, 4, 11, 13, 59, 59, 0)
+                .trunc_hour()
+                .unwrap()
+        );
+
+        // Minute
+        assert_eq!(
+            generate_ts(2015, 4, 11, 13, 59, 0, 0),
+            generate_ts(2015, 4, 11, 13, 59, 59, 0)
+                .trunc_minute()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_round() {
+        let ts = generate_ts(1996, 10, 24, 0, 0, 0, 0);
+
+        assert_eq!(
+            generate_ts(2001, 1, 1, 0, 0, 0, 0),
+            ts.round_century().unwrap()
+        );
+        assert_eq!(
+            generate_ts(1901, 1, 1, 0, 0, 0, 0),
+            generate_ts(2000, 1, 1, 0, 0, 0, 0).round_century().unwrap()
+        );
+        assert_eq!(
+            generate_ts(1997, 1, 1, 0, 0, 0, 0),
+            ts.round_year().unwrap()
+        );
+        assert_eq!(
+            generate_ts(1996, 12, 30, 0, 0, 0, 0),
+            ts.round_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_ts(1996, 10, 1, 0, 0, 0, 0),
+            ts.round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2022, 1, 1, 0, 0, 0, 0),
+            generate_ts(2021, 11, 16, 0, 0, 0, 0)
+                .round_quarter()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 10, 1, 0, 0, 0, 0),
+            generate_ts(2021, 9, 1, 0, 0, 0, 0).round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2022, 1, 1, 0, 0, 0, 0),
+            generate_ts(2021, 12, 1, 0, 0, 0, 0)
+                .round_quarter()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(1996, 11, 1, 0, 0, 0, 0),
+            ts.round_month().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 10, 15, 0, 0, 0, 0),
+            generate_ts(2021, 10, 13, 0, 0, 0, 0).round_week().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 1, 1, 0, 0, 0, 0),
+            generate_ts(2021, 1, 1, 0, 0, 0, 0).round_week().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 12, 31, 0, 0, 0, 0),
+            generate_ts(2021, 12, 31, 0, 0, 0, 0).round_week().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 10, 18, 0, 0, 0, 0),
+            generate_ts(2021, 10, 15, 0, 0, 0, 0)
+                .round_iso_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 11, 8, 0, 0, 0, 0),
+            generate_ts(2021, 11, 5, 0, 0, 0, 0)
+                .round_month_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(1996, 10, 25, 0, 0, 0, 0),
+            generate_ts(1996, 10, 24, 12, 0, 0, 0).round_day().unwrap()
+        );
+        assert_eq!(
+            generate_ts(1996, 10, 27, 0, 0, 0, 0),
+            ts.round_sunday_start_week().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2015, 3, 3, 12, 0, 0, 0),
+            generate_ts(2015, 3, 3, 11, 30, 59, 0).round_hour().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2015, 3, 4, 0, 0, 0, 0),
+            generate_ts(2015, 3, 3, 23, 30, 0, 0).round_hour().unwrap()
+        );
+        assert_eq!(
+            generate_ts(2015, 3, 3, 11, 30, 0, 0),
+            generate_ts(2015, 3, 3, 11, 29, 30, 0)
+                .round_minute()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2015, 3, 4, 0, 0, 0, 0),
+            generate_ts(2015, 3, 3, 23, 59, 30, 0)
+                .round_minute()
+                .unwrap()
+        );
     }
 }
