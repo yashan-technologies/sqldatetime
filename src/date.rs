@@ -326,6 +326,51 @@ impl Date {
         let now = Local::now().naive_local();
         Date::try_from_ymd(now.year(), now.month(), now.day())
     }
+
+    /// Converts date to ISO year.
+    #[inline]
+    fn date_to_iso_year(self) -> i32 {
+        // Converts Julian date to day-of-week (0..6 == Mon..Sun)
+        #[inline]
+        fn week_day_of_julian(date: i32) -> i32 {
+            let mut date = date;
+            date %= 7;
+            // Cope if division truncates towards zero, as it probably does
+            if date < 0 {
+                date += 7;
+            }
+            date
+        }
+
+        let mut year = self.year().unwrap();
+        // current day
+        let current_julian_day = self.days() + UNIX_EPOCH_JULIAN;
+        // fourth day of current year
+        let mut fourth_julian_day = date2julian(year, 1, 4);
+        // offset to first day of week (Monday)
+        let mut offset_to_monday = week_day_of_julian(fourth_julian_day);
+
+        // We need the first week containing a Thursday, otherwise this day falls
+        // into the previous year for purposes of counting weeks
+        if current_julian_day < fourth_julian_day - offset_to_monday {
+            fourth_julian_day = date2julian(year - 1, 1, 4);
+            offset_to_monday = week_day_of_julian(fourth_julian_day);
+            year -= 1;
+        }
+
+        // Sometimes the last few days in a year will fall into the first week of
+        // the next year, so check for this
+        let num_of_week = (current_julian_day - (fourth_julian_day - offset_to_monday)) / 7 + 1;
+        if num_of_week >= 52 {
+            fourth_julian_day = date2julian(year + 1, 1, 4);
+            offset_to_monday = week_day_of_julian(fourth_julian_day);
+            if current_julian_day >= fourth_julian_day - offset_to_monday {
+                year += 1;
+            }
+        }
+
+        year
+    }
 }
 
 impl Trunc for Date {
@@ -348,7 +393,8 @@ impl Trunc for Date {
 
     #[inline]
     fn trunc_iso_year(self) -> Result<Self> {
-        let first_date = unsafe { Date::from_ymd_unchecked(self.year().unwrap(), 1, 1) };
+        let iso_year = self.date_to_iso_year();
+        let first_date = unsafe { Date::from_ymd_unchecked(iso_year, 1, 1) };
         let week_day = first_date.day_of_week() as usize;
         let (to_first_date_of_week, remain_day) = ISO_YEAR_TABLE[week_day];
         to_first_date_of_week(first_date, remain_day)
@@ -469,19 +515,15 @@ impl Round for Date {
 
     #[inline]
     fn round_iso_year(self) -> Result<Self> {
-        let (year, month, _) = self.extract();
-        if month < 7 {
-            self.trunc_iso_year()
-        } else {
+        let (year, month, day) = self.extract();
+        let mut date = self;
+        if month >= 7 {
             if year == DATE_MAX_YEAR {
                 return Err(Error::DateOutOfRange);
             }
-
-            let first_date = unsafe { Date::from_ymd_unchecked(year + 1, 1, 1) };
-            let week_day = first_date.day_of_week() as usize;
-            let (to_first_date_of_week, remain_day) = ISO_YEAR_TABLE[week_day];
-            to_first_date_of_week(first_date, remain_day)
+            date = unsafe { Date::from_ymd_unchecked(year + 1, month, day) };
         }
+        date.trunc_iso_year()
     }
 
     #[inline]
@@ -1227,7 +1269,44 @@ mod tests {
 
         assert_eq!(generate_date(1901, 1, 1), dt.trunc_century().unwrap());
         assert_eq!(generate_date(1996, 1, 1), dt.trunc_year().unwrap());
+
+        // Test ISO Year
+        // First date of range
+        assert_eq!(
+            generate_date(1, 1, 1),
+            generate_date(1, 1, 1).trunc_iso_year().unwrap()
+        );
+        // First year of Julian date
+        assert_eq!(
+            generate_date(1583, 1, 3),
+            generate_date(1583, 12, 31).trunc_iso_year().unwrap()
+        );
+        // Last date of range
+        assert_eq!(
+            generate_date(9999, 1, 4),
+            generate_date(9999, 12, 31).trunc_iso_year().unwrap()
+        );
         assert_eq!(generate_date(1996, 1, 1), dt.trunc_iso_year().unwrap());
+        // Previous two years
+        assert_eq!(
+            generate_date(2019, 12, 30),
+            generate_date(2021, 1, 3).trunc_iso_year().unwrap()
+        );
+        // Previous one year
+        assert_eq!(
+            generate_date(2018, 12, 31),
+            generate_date(2019, 12, 29).trunc_iso_year().unwrap()
+        );
+        // Same year
+        assert_eq!(
+            generate_date(2019, 12, 30),
+            generate_date(2019, 12, 31).trunc_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_date(2018, 12, 31),
+            generate_date(2018, 12, 31).trunc_iso_year().unwrap()
+        );
+
         assert_eq!(generate_date(1996, 10, 1), dt.trunc_quarter().unwrap());
         assert_eq!(generate_date(1996, 10, 1), dt.trunc_month().unwrap());
         assert_eq!(generate_date(1996, 10, 21), dt.trunc_week().unwrap());
@@ -1256,12 +1335,54 @@ mod tests {
     }
 
     #[test]
+    fn test_round_overflow() {
+        let dt = generate_date(DATE_MAX_YEAR, 12, 31);
+        assert!(dt.round_century().is_err());
+        assert!(dt.round_year().is_err());
+        assert!(dt.round_quarter().is_err());
+        assert!(dt.round_month().is_err());
+        assert!(dt.round_sunday_start_week().is_err());
+    }
+
+    #[test]
     fn test_round() {
         let dt = generate_date(1996, 10, 24);
 
         assert_eq!(generate_date(2001, 1, 1), dt.round_century().unwrap());
         assert_eq!(generate_date(1997, 1, 1), dt.round_year().unwrap());
+
+        // Test ISO Year
+        // First date of range
+        assert_eq!(
+            generate_date(1, 1, 1),
+            generate_date(1, 1, 1).round_iso_year().unwrap()
+        );
+        // First year of Julian date, and last date of range is overflow
+        assert_eq!(
+            generate_date(1584, 12, 31),
+            generate_date(1583, 12, 31).round_iso_year().unwrap()
+        );
         assert_eq!(generate_date(1996, 12, 30), dt.round_iso_year().unwrap());
+        // Previous two years
+        assert_eq!(
+            generate_date(2019, 12, 30),
+            generate_date(2021, 1, 3).round_iso_year().unwrap()
+        );
+        // Same year
+        assert_eq!(
+            generate_date(2019, 12, 30),
+            generate_date(2019, 12, 29).round_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_date(2019, 12, 30),
+            generate_date(2019, 12, 31).round_iso_year().unwrap()
+        );
+        // Next year
+        assert_eq!(
+            generate_date(2019, 12, 30),
+            generate_date(2018, 12, 31).round_iso_year().unwrap()
+        );
+
         assert_eq!(generate_date(1996, 10, 1), dt.round_quarter().unwrap());
         assert_eq!(
             generate_date(2022, 1, 1),
