@@ -515,13 +515,14 @@ impl Round for Date {
 
     #[inline]
     fn round_iso_year(self) -> Result<Self> {
-        let (year, month, day) = self.extract();
+        let (year, month, _) = self.extract();
         let mut date = self;
         if month >= 7 {
             if year == DATE_MAX_YEAR {
                 return Err(Error::DateOutOfRange);
             }
-            date = unsafe { Date::from_ymd_unchecked(year + 1, month, day) };
+            // Sets the month and date into the first week.
+            date = unsafe { Date::from_ymd_unchecked(year + 1, 1, 4) };
         }
         date.trunc_iso_year()
     }
@@ -1357,9 +1358,8 @@ mod tests {
             generate_date(1, 1, 1),
             generate_date(1, 1, 1).round_iso_year().unwrap()
         );
-        // First year of Julian date, and last date of range is overflow
         assert_eq!(
-            generate_date(1584, 12, 31),
+            generate_date(1584, 1, 2),
             generate_date(1583, 12, 31).round_iso_year().unwrap()
         );
         assert_eq!(generate_date(1996, 12, 30), dt.round_iso_year().unwrap());
@@ -1377,10 +1377,22 @@ mod tests {
             generate_date(2019, 12, 30),
             generate_date(2019, 12, 31).round_iso_year().unwrap()
         );
+        assert_eq!(
+            generate_date(2018, 12, 31),
+            generate_date(2018, 12, 30).round_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_date(2018, 12, 31),
+            generate_date(2018, 12, 31).round_iso_year().unwrap()
+        );
         // Next year
         assert_eq!(
-            generate_date(2019, 12, 30),
-            generate_date(2018, 12, 31).round_iso_year().unwrap()
+            generate_date(2001, 1, 1),
+            generate_date(2000, 12, 30).round_iso_year().unwrap()
+        );
+        assert_eq!(
+            generate_date(2001, 1, 1),
+            generate_date(2000, 12, 31).round_iso_year().unwrap()
         );
 
         assert_eq!(generate_date(1996, 10, 1), dt.round_quarter().unwrap());

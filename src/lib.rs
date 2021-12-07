@@ -242,8 +242,8 @@ pub trait Round: Sized {
     /// ```
     /// use sqldatetime::{Timestamp, Date, Time, Round};
     ///
-    /// let timestamp = Date::try_from_ymd(2021, 7, 1).unwrap().and_time(Time::ZERO);
-    /// let result = Date::try_from_ymd(2022, 1, 3).unwrap().and_time(Time::ZERO);
+    /// let timestamp = Date::try_from_ymd(2000, 12, 31).unwrap().and_time(Time::ZERO);
+    /// let result = Date::try_from_ymd(2001, 1, 1).unwrap().and_time(Time::ZERO);
     /// assert_eq!(timestamp.round_iso_year().unwrap(), result);
     /// ```
     fn round_iso_year(self) -> Result<Self, Error>;
