@@ -1042,7 +1042,7 @@ impl Formatter {
                     s = &s[1..];
                 } else {
                     return Err(Error::ParseError(format!(
-                        "the input is inconsistent with the format: {}",
+                        "the input {} is inconsistent with the format",
                         input.as_ref()
                     )));
                 }
@@ -1057,7 +1057,7 @@ impl Formatter {
                     continue;
                 } else {
                     return Err(Error::ParseError(format!(
-                        "the input is inconsistent with the format: {}",
+                        "the input {} is inconsistent with the format",
                         input.as_ref()
                     )));
                 }
