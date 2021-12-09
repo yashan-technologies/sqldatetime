@@ -371,6 +371,42 @@ impl Date {
 
         year
     }
+
+    #[inline]
+    pub(crate) fn round_week_internal(self, year: i32) -> Result<Date> {
+        const WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, -3),
+            (sub_to_date, -2),
+            (sub_to_date, -1),
+            (sub_to_date, 0), // Unreachable
+        ];
+
+        let week_day = self.sub_date(unsafe { Date::from_ymd_unchecked(year, 1, 1) }) % 7;
+        let (to_first_date_of_week, remain_day) = WEEK_TABLE[week_day as usize];
+        to_first_date_of_week(self, remain_day)
+    }
+
+    #[inline]
+    pub(crate) fn round_month_start_week_internal(self, day: i32) -> Result<Date> {
+        const MONTH_START_WEEK_TABLE: [(DateSubMethod, i32); 8] = [
+            (sub_to_date, -1),
+            (current_date, 0),
+            (sub_to_date, 1),
+            (sub_to_date, 2),
+            (sub_to_date, 3),
+            (sub_to_date, -3),
+            (sub_to_date, -2),
+            (sub_to_date, 0), // Unreachable
+        ];
+
+        let week_day = day % 7;
+        let (to_first_date_of_week, remain_day) = MONTH_START_WEEK_TABLE[week_day as usize];
+        to_first_date_of_week(self, remain_day)
+    }
 }
 
 impl Trunc for Date {
@@ -573,21 +609,7 @@ impl Round for Date {
 
     #[inline]
     fn round_week(self) -> Result<Self> {
-        const WEEK_TABLE: [(DateSubMethod, i32); 8] = [
-            (current_date, 0),
-            (sub_to_date, 1),
-            (sub_to_date, 2),
-            (sub_to_date, 3),
-            (sub_to_date, -3),
-            (sub_to_date, -2),
-            (sub_to_date, -1),
-            (sub_to_date, 0), // Unreachable
-        ];
-
-        let week_day =
-            self.sub_date(unsafe { Date::from_ymd_unchecked(self.year().unwrap(), 1, 1) }) % 7;
-        let (to_first_date_of_week, remain_day) = WEEK_TABLE[week_day as usize];
-        to_first_date_of_week(self, remain_day)
+        self.round_week_internal(self.year().unwrap())
     }
 
     #[inline]
@@ -610,20 +632,7 @@ impl Round for Date {
 
     #[inline]
     fn round_month_start_week(self) -> Result<Self> {
-        const MONTH_START_WEEK_TABLE: [(DateSubMethod, i32); 8] = [
-            (sub_to_date, -1),
-            (current_date, 0),
-            (sub_to_date, 1),
-            (sub_to_date, 2),
-            (sub_to_date, 3),
-            (sub_to_date, -3),
-            (sub_to_date, -2),
-            (sub_to_date, 0), // Unreachable
-        ];
-
-        let week_day = self.day().unwrap() % 7;
-        let (to_first_date_of_week, remain_day) = MONTH_START_WEEK_TABLE[week_day as usize];
-        to_first_date_of_week(self, remain_day)
+        self.round_month_start_week_internal(self.day().unwrap())
     }
 
     #[inline]

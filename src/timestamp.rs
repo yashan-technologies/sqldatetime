@@ -305,17 +305,45 @@ impl Round for Timestamp {
 
     #[inline]
     fn round_week(self) -> Result<Self> {
-        Ok(self.date().round_week()?.and_zero_time())
+        let (mut date, time) = self.extract();
+        let (year, month, day) = date.extract();
+        // Never round to next year.
+        if time.hour().unwrap() >= 12 && (month != 12 && day != 31) {
+            date = date.add_days(1)?;
+        }
+
+        Ok(date.round_week_internal(year)?.and_zero_time())
     }
 
     #[inline]
     fn round_iso_week(self) -> Result<Self> {
-        Ok(self.date().round_iso_week()?.and_zero_time())
+        let (mut date, time) = self.extract();
+        if time.hour().unwrap() >= 12 {
+            date = date.add_days(1)?;
+        }
+        Ok(date.round_iso_week()?.and_zero_time())
     }
 
     #[inline]
     fn round_month_start_week(self) -> Result<Self> {
-        Ok(self.date().round_month_start_week()?.and_zero_time())
+        let (mut date, time) = self.extract();
+        let temp_date = date;
+        let (_, month, mut day) = temp_date.extract();
+
+        if time.hour().unwrap() >= 12 {
+            date = date.add_days(1)?;
+            // Never round to next month or next year.
+            let (_, round_month, round_day) = date.extract();
+            if round_month != month {
+                date = temp_date;
+            } else {
+                day = round_day;
+            }
+        }
+
+        Ok(date
+            .round_month_start_week_internal(day as i32)?
+            .and_zero_time())
     }
 
     #[inline]
@@ -329,7 +357,11 @@ impl Round for Timestamp {
 
     #[inline]
     fn round_sunday_start_week(self) -> Result<Self> {
-        Ok(self.date().round_sunday_start_week()?.and_zero_time())
+        let (mut date, time) = self.extract();
+        if time.hour().unwrap() >= 12 {
+            date = date.add_days(1)?;
+        }
+        Ok(date.round_sunday_start_week()?.and_zero_time())
     }
 
     #[inline]
@@ -1433,7 +1465,6 @@ mod tests {
 
         // Would not overflow
         assert!(ts.round_week().is_ok());
-        assert!(ts.round_month_start_week().is_ok());
 
         assert!(ts.round_century().is_err());
         assert!(ts.round_year().is_err());
@@ -1441,6 +1472,7 @@ mod tests {
         assert!(ts.round_quarter().is_err());
         assert!(ts.round_month().is_err());
         assert!(ts.round_iso_week().is_err());
+        assert!(ts.round_month_start_week().is_err());
         assert!(ts.round_day().is_err());
         assert!(ts.round_sunday_start_week().is_err());
         assert!(ts.round_hour().is_err());
@@ -1584,6 +1616,8 @@ mod tests {
             generate_ts(1996, 11, 1, 0, 0, 0, 0),
             ts.round_month().unwrap()
         );
+
+        // No hour
         assert_eq!(
             generate_ts(2021, 10, 15, 0, 0, 0, 0),
             generate_ts(2021, 10, 13, 0, 0, 0, 0).round_week().unwrap()
@@ -1596,26 +1630,188 @@ mod tests {
             generate_ts(2021, 12, 31, 0, 0, 0, 0),
             generate_ts(2021, 12, 31, 0, 0, 0, 0).round_week().unwrap()
         );
+        // Round day by hour
+        // Change date in the same month
+        assert_eq!(
+            generate_ts(2021, 1, 1, 0, 0, 0, 0),
+            generate_ts(2021, 1, 4, 11, 59, 59, 59)
+                .round_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 1, 8, 0, 0, 0, 0),
+            generate_ts(2021, 1, 4, 12, 0, 0, 0).round_week().unwrap()
+        );
+        // Round month
+        assert_eq!(
+            generate_ts(2021, 1, 29, 0, 0, 0, 0),
+            generate_ts(2021, 2, 1, 11, 59, 59, 59)
+                .round_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 2, 5, 0, 0, 0, 0),
+            generate_ts(2021, 2, 1, 12, 0, 0, 0).round_week().unwrap()
+        );
+        // Never round to next year
+        assert_eq!(
+            generate_ts(2021, 12, 31, 0, 0, 0, 0),
+            generate_ts(2021, 12, 31, 11, 59, 59, 59)
+                .round_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 12, 31, 0, 0, 0, 0),
+            generate_ts(2021, 12, 31, 12, 0, 0, 0).round_week().unwrap()
+        );
+
+        // No hour
         assert_eq!(
             generate_ts(2021, 10, 18, 0, 0, 0, 0),
             generate_ts(2021, 10, 15, 0, 0, 0, 0)
                 .round_iso_week()
                 .unwrap()
         );
+        // Round day by hour
+        // Change date in the same month
+        assert_eq!(
+            generate_ts(2021, 10, 11, 0, 0, 0, 0),
+            generate_ts(2021, 10, 14, 11, 59, 59, 59)
+                .round_iso_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 10, 18, 0, 0, 0, 0),
+            generate_ts(2021, 10, 15, 12, 0, 0, 0)
+                .round_iso_week()
+                .unwrap()
+        );
+        // Round month
+        assert_eq!(
+            generate_ts(2021, 2, 22, 0, 0, 0, 0),
+            generate_ts(2021, 2, 25, 11, 59, 59, 59)
+                .round_iso_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 3, 1, 0, 0, 0, 0),
+            generate_ts(2021, 2, 25, 12, 0, 0, 0)
+                .round_iso_week()
+                .unwrap()
+        );
+        // Round Year
+        assert_eq!(
+            generate_ts(2021, 12, 27, 0, 0, 0, 0),
+            generate_ts(2021, 12, 30, 11, 59, 59, 59)
+                .round_iso_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2022, 1, 3, 0, 0, 0, 0),
+            generate_ts(2021, 12, 30, 12, 0, 0, 0)
+                .round_iso_week()
+                .unwrap()
+        );
+
+        // No hour
         assert_eq!(
             generate_ts(2021, 11, 8, 0, 0, 0, 0),
             generate_ts(2021, 11, 5, 0, 0, 0, 0)
                 .round_month_start_week()
                 .unwrap()
         );
+        // Round day by hour
+        // Change date in the same month
+        assert_eq!(
+            generate_ts(2021, 11, 1, 0, 0, 0, 0),
+            generate_ts(2021, 11, 4, 11, 59, 59, 59)
+                .round_month_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 11, 8, 0, 0, 0, 0),
+            generate_ts(2021, 11, 4, 12, 0, 0, 0)
+                .round_month_start_week()
+                .unwrap()
+        );
+        // Never round to next month
+        assert_eq!(
+            generate_ts(2021, 11, 29, 0, 0, 0, 0),
+            generate_ts(2021, 11, 30, 11, 59, 59, 59)
+                .round_month_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 11, 29, 0, 0, 0, 0),
+            generate_ts(2021, 11, 30, 12, 0, 0, 0)
+                .round_month_start_week()
+                .unwrap()
+        );
+        // Never round to next year
+        assert_eq!(
+            generate_ts(2021, 12, 29, 0, 0, 0, 0),
+            generate_ts(2021, 12, 31, 11, 59, 59, 59)
+                .round_month_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 12, 29, 0, 0, 0, 0),
+            generate_ts(2021, 12, 31, 12, 0, 0, 0)
+                .round_month_start_week()
+                .unwrap()
+        );
+
         assert_eq!(
             generate_ts(1996, 10, 25, 0, 0, 0, 0),
             generate_ts(1996, 10, 24, 12, 0, 0, 0).round_day().unwrap()
         );
+
+        // No hour
         assert_eq!(
             generate_ts(1996, 10, 27, 0, 0, 0, 0),
             ts.round_sunday_start_week().unwrap()
         );
+        // Round day by hour
+        // Change date in the same month
+        assert_eq!(
+            generate_ts(2021, 10, 10, 0, 0, 0, 0),
+            generate_ts(2021, 10, 13, 11, 59, 59, 59)
+                .round_sunday_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 10, 17, 0, 0, 0, 0),
+            generate_ts(2021, 10, 13, 12, 0, 0, 0)
+                .round_sunday_start_week()
+                .unwrap()
+        );
+        // Round month
+        assert_eq!(
+            generate_ts(2021, 3, 28, 0, 0, 0, 0),
+            generate_ts(2021, 3, 31, 11, 59, 59, 59)
+                .round_sunday_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2021, 4, 4, 0, 0, 0, 0),
+            generate_ts(2021, 3, 31, 12, 0, 0, 0)
+                .round_sunday_start_week()
+                .unwrap()
+        );
+        // Round Year
+        assert_eq!(
+            generate_ts(2021, 12, 26, 0, 0, 0, 0),
+            generate_ts(2021, 12, 29, 11, 59, 59, 59)
+                .round_sunday_start_week()
+                .unwrap()
+        );
+        assert_eq!(
+            generate_ts(2022, 1, 2, 0, 0, 0, 0),
+            generate_ts(2021, 12, 29, 12, 0, 0, 0)
+                .round_sunday_start_week()
+                .unwrap()
+        );
+
         assert_eq!(
             generate_ts(2015, 3, 3, 12, 0, 0, 0),
             generate_ts(2015, 3, 3, 11, 30, 59, 0).round_hour().unwrap()
