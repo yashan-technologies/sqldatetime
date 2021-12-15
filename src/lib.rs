@@ -23,7 +23,7 @@ mod serialize;
 pub use crate::date::{Date, Month, WeekDay};
 pub use crate::error::Error;
 pub use crate::format::Formatter;
-pub use crate::interval::{IntervalDT, IntervalYM};
+pub use crate::interval::{IntervalDT, IntervalYM, Sign};
 pub use crate::time::Time;
 pub use crate::timestamp::Timestamp;
 
