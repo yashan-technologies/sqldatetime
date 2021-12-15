@@ -20,7 +20,7 @@ const INTERVAL_MAX_DAY: i32 = 100_000_000;
 pub(crate) const INTERVAL_MAX_MONTH: i32 = INTERVAL_MAX_YEAR * (MONTHS_PER_YEAR as i32);
 pub(crate) const INTERVAL_MAX_USECONDS: i64 = INTERVAL_MAX_DAY as i64 * USECONDS_PER_DAY;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum Sign {
     Positive = 1,
     Negative = -1,
@@ -113,7 +113,7 @@ impl IntervalYM {
         self.0
     }
 
-    /// Extracts `(year, month)` from the interval.
+    /// Extracts `(sign, year, month)` from the interval.
     #[inline]
     pub const fn extract(self) -> (Sign, u32, u32) {
         if self.0.is_negative() {
@@ -399,7 +399,7 @@ impl IntervalDT {
         self.0
     }
 
-    /// Extracts `(day, hour, minute, second, microsecond)` from the interval.
+    /// Extracts `(sign, day, hour, minute, second, microsecond)` from the interval.
     #[inline]
     pub const fn extract(self) -> (Sign, u32, u32, u32, u32, u32) {
         let (sign, day, mut time) = if self.0.is_negative() {
