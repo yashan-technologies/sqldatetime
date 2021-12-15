@@ -1217,7 +1217,8 @@ impl Formatter {
                                 "format code (hour) appears twice".to_string(),
                             ));
                         }
-                        let (hour, negative) = expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0);
+                        let (hour, negative) =
+                            expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 12);
                         if negative || hour < 1 || hour > 12 {
                             return Err(Error::ParseError(
                                 "hour must be between 1 and 12".to_string(),

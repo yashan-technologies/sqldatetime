@@ -792,6 +792,22 @@ mod tests {
                 assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 0));
 
                 let timestamp =
+                    Timestamp::parse("2021-12-15", "YYYY-MM-DD HH:MI:SS.ff AM").unwrap();
+                assert_eq!(timestamp, generate_ts(2021, 12, 15, 12, 0, 0, 0));
+
+                let timestamp =
+                    Timestamp::parse("2021-12-15 11", "YYYY-MM-DD HH:MI:SS.ff AM").unwrap();
+                assert_eq!(timestamp, generate_ts(2021, 12, 15, 11, 0, 0, 0));
+
+                let timestamp =
+                    Timestamp::parse("2021-12-15 11:23", "YYYY-MM-DD HH:MI:SS.ff AM").unwrap();
+                assert_eq!(timestamp, generate_ts(2021, 12, 15, 11, 23, 0, 0));
+
+                let timestamp =
+                    Timestamp::parse("2021-12-15 11:23:25", "YYYY-MM-DD HH:MI:SS.ff AM").unwrap();
+                assert_eq!(timestamp, generate_ts(2021, 12, 15, 11, 23, 25, 0));
+
+                let timestamp =
                     Timestamp::parse("2020-11-12 11:23:25.123456", "YYYY-MM-DD HH:MI:SS.ff AM")
                         .unwrap();
                 assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 123456));

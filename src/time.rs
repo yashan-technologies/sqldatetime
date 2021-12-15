@@ -367,6 +367,30 @@ mod tests {
             let time = Time::try_from_hms(0, 0, 1, 0).unwrap();
             let time2 = Time::parse("01", "SS").unwrap();
             assert_eq!(time2, time);
+
+            let time = Time::try_from_hms(0, 0, 0, 0).unwrap();
+            let time2 = Time::parse("", "HH24:MI:SS").unwrap();
+            assert_eq!(time2, time);
+
+            let time = Time::try_from_hms(11, 0, 0, 0).unwrap();
+            let time2 = Time::parse("11", "HH24:MI:SS").unwrap();
+            assert_eq!(time2, time);
+
+            let time = Time::try_from_hms(11, 23, 0, 0).unwrap();
+            let time2 = Time::parse("11:23", "HH24:MI:SS").unwrap();
+            assert_eq!(time2, time);
+
+            let time = Time::try_from_hms(12, 0, 0, 0).unwrap();
+            let time2 = Time::parse("", "HH:MI:SS").unwrap();
+            assert_eq!(time2, time);
+
+            let time = Time::try_from_hms(11, 0, 0, 0).unwrap();
+            let time2 = Time::parse("11", "HH:MI:SS").unwrap();
+            assert_eq!(time2, time);
+
+            let time = Time::try_from_hms(11, 23, 0, 0).unwrap();
+            let time2 = Time::parse("11:23", "HH:MI:SS").unwrap();
+            assert_eq!(time2, time);
         }
 
         // Short Format
