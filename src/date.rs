@@ -407,6 +407,17 @@ impl Date {
         let (to_first_date_of_week, remain_day) = MONTH_START_WEEK_TABLE[week_day as usize];
         to_first_date_of_week(self, remain_day)
     }
+
+    /// Gets the last day in month of this `Date`.
+    #[inline]
+    pub fn last_day_of_month(self) -> Date {
+        let (year, month, day) = self.extract();
+
+        let result_day = days_of_month(year, month);
+        let result = self.days() + result_day as i32 - day as i32;
+
+        unsafe { Date::from_days_unchecked(result) }
+    }
 }
 
 impl Trunc for Date {
@@ -1445,6 +1456,34 @@ mod tests {
         assert_eq!(
             generate_date(2015, 3, 3),
             generate_date(2015, 3, 3).round_minute().unwrap()
+        );
+    }
+
+    #[test]
+    fn test_last_day_of_month() {
+        assert_eq!(
+            generate_date(2021, 9, 23).last_day_of_month(),
+            generate_date(2021, 9, 30)
+        );
+        assert_eq!(
+            generate_date(1970, 1, 1).last_day_of_month(),
+            generate_date(1970, 1, 31)
+        );
+        assert_eq!(
+            generate_date(1704, 2, 1).last_day_of_month(),
+            generate_date(1704, 2, 29)
+        );
+        assert_eq!(
+            generate_date(1705, 2, 10).last_day_of_month(),
+            generate_date(1705, 2, 28)
+        );
+        assert_eq!(
+            generate_date(1, 1, 1).last_day_of_month(),
+            generate_date(1, 1, 31)
+        );
+        assert_eq!(
+            generate_date(9999, 12, 31).last_day_of_month(),
+            generate_date(9999, 12, 31)
         );
     }
 }

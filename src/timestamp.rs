@@ -1,6 +1,6 @@
 //! Timestamp implementation.
 
-use crate::common::{is_valid_timestamp, USECONDS_PER_DAY};
+use crate::common::{days_of_month, is_valid_timestamp, USECONDS_PER_DAY};
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{Date, DateTime, IntervalDT, IntervalYM, Round, Time, Trunc};
@@ -207,6 +207,18 @@ impl Timestamp {
                 now.timestamp_subsec_micros(),
             )?,
         ))
+    }
+
+    /// Gets the last day in month of `Timestamp`.
+    #[inline]
+    pub fn last_day_of_month(self) -> Timestamp {
+        let (sqldate, _) = self.extract();
+        let (year, month, day) = sqldate.extract();
+
+        let result_day = days_of_month(year, month);
+        let result = self.usecs() + (result_day - day) as i64 * USECONDS_PER_DAY;
+
+        unsafe { Timestamp::from_usecs_unchecked(result) }
     }
 }
 
@@ -1847,6 +1859,34 @@ mod tests {
             generate_ts(2015, 3, 3, 23, 59, 30, 0)
                 .round_minute()
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_last_day_of_month() {
+        assert_eq!(
+            generate_ts(2021, 9, 23, 14, 15, 16, 17).last_day_of_month(),
+            generate_ts(2021, 9, 30, 14, 15, 16, 17)
+        );
+        assert_eq!(
+            generate_ts(1970, 1, 1, 0, 0, 0, 0).last_day_of_month(),
+            generate_ts(1970, 1, 31, 0, 0, 0, 0)
+        );
+        assert_eq!(
+            generate_ts(1704, 2, 1, 23, 59, 59, 999999).last_day_of_month(),
+            generate_ts(1704, 2, 29, 23, 59, 59, 999999)
+        );
+        assert_eq!(
+            generate_ts(1705, 2, 10, 20, 40, 50, 56789).last_day_of_month(),
+            generate_ts(1705, 2, 28, 20, 40, 50, 56789)
+        );
+        assert_eq!(
+            generate_ts(1, 1, 1, 0, 0, 0, 0).last_day_of_month(),
+            generate_ts(1, 1, 31, 0, 0, 0, 0)
+        );
+        assert_eq!(
+            generate_ts(9999, 12, 31, 23, 59, 59, 999999).last_day_of_month(),
+            generate_ts(9999, 12, 31, 23, 59, 59, 999999)
         );
     }
 }

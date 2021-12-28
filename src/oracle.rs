@@ -171,6 +171,12 @@ impl Date {
             Time::try_from_hms(now.hour(), now.minute(), now.second(), 0)?,
         ))
     }
+
+    /// Gets the last day in month of `Date`.
+    #[inline]
+    pub fn last_day_of_month(self) -> Date {
+        self.0.last_day_of_month().into()
+    }
 }
 
 impl Trunc for Date {
@@ -1539,6 +1545,34 @@ mod tests {
             generate_date(2015, 3, 3, 23, 59, 30)
                 .round_minute()
                 .unwrap()
+        );
+    }
+
+    #[test]
+    fn test_last_day_of_month() {
+        assert_eq!(
+            generate_date(2021, 9, 23, 14, 15, 16).last_day_of_month(),
+            generate_date(2021, 9, 30, 14, 15, 16)
+        );
+        assert_eq!(
+            generate_date(1970, 1, 1, 0, 0, 0).last_day_of_month(),
+            generate_date(1970, 1, 31, 0, 0, 0)
+        );
+        assert_eq!(
+            generate_date(1704, 2, 1, 23, 59, 59).last_day_of_month(),
+            generate_date(1704, 2, 29, 23, 59, 59)
+        );
+        assert_eq!(
+            generate_date(1705, 2, 10, 5, 6, 7).last_day_of_month(),
+            generate_date(1705, 2, 28, 5, 6, 7)
+        );
+        assert_eq!(
+            generate_date(1, 1, 1, 0, 0, 0).last_day_of_month(),
+            generate_date(1, 1, 31, 0, 0, 0)
+        );
+        assert_eq!(
+            generate_date(9999, 12, 31, 23, 59, 59).last_day_of_month(),
+            generate_date(9999, 12, 31, 23, 59, 59)
         );
     }
 }

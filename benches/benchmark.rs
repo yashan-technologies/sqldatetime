@@ -205,6 +205,13 @@ fn timestamp_sub_timestamp_100_times(bench: &mut Bencher) {
     })
 }
 
+fn timestamp_last_day_of_month(bench: &mut Bencher) {
+    let ts = Timestamp::from_str("2021-12-28 9:57:22.123456");
+    bench.iter(|| {
+        let _ = black_box(black_box(ts).last_day_of_month());
+    })
+}
+
 fn date_parse_format(bench: &mut Bencher) {
     bench.iter(|| Formatter::try_new(black_box("yyyy-mm-dd")).unwrap());
 }
@@ -523,6 +530,13 @@ pub fn date_round_minute_100_times(bench: &mut Bencher) {
             let x = dt.round_minute().unwrap();
             black_box(x);
         }
+    })
+}
+
+fn date_last_day_of_month(bench: &mut Bencher) {
+    let dt = Date::from_str("2021-12-28");
+    bench.iter(|| {
+        let _ = black_box(black_box(dt).last_day_of_month());
     })
 }
 
@@ -992,6 +1006,13 @@ mod oracle_bench {
             }
         })
     }
+
+    pub fn oracle_date_last_day_of_month(bench: &mut Bencher) {
+        let od: OracleDate = OracleDate::from_str("2021-12-28 9:57:22");
+        bench.iter(|| {
+            let _ = black_box(black_box(od).last_day_of_month());
+        })
+    }
 }
 
 #[cfg(feature = "oracle")]
@@ -1029,6 +1050,7 @@ benchmark_group!(
     oracle_date_round_sunday_start_week_100_times,
     oracle_date_round_hour_100_times,
     oracle_date_round_minute_100_times,
+    oracle_date_last_day_of_month,
 );
 
 benchmark_group!(
@@ -1051,6 +1073,7 @@ benchmark_group!(
     timestamp_extract_hour,
     timestamp_extract_minute,
     timestamp_extract_second,
+    timestamp_last_day_of_month,
     date_parse_format,
     date_parse,
     date_format,
@@ -1085,6 +1108,7 @@ benchmark_group!(
     date_round_sunday_start_week_100_times,
     date_round_hour_100_times,
     date_round_minute_100_times,
+    date_last_day_of_month,
     time_parse_format,
     time_parse,
     time_format,
