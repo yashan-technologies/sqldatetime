@@ -696,6 +696,10 @@ mod tests {
         let interval2 = IntervalYM::parse("1-1", "yy-mm").unwrap();
         assert_eq!(interval, interval2);
 
+        // Tests when fmt doesn't have month, returns the default month `0` in IntervalYM
+        let res = IntervalYM::parse("2022", "YYYY").unwrap();
+        assert_eq!(res.month().unwrap(), 0);
+
         // Invalid
         assert!(IntervalYM::parse("178000000-1", "yyyy-mm").is_err());
         assert!(IntervalYM::parse("178000001-0", "yyyy-mm").is_err());

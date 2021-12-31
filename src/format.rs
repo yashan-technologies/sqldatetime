@@ -211,7 +211,7 @@ impl NaiveDateTime {
     pub const fn new() -> Self {
         NaiveDateTime {
             year: DATE_MIN_YEAR,
-            month: 1,
+            month: 0,
             day: 1,
             hour: 0,
             minute: 0,
