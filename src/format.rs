@@ -39,7 +39,7 @@ const MINUTE_SECOND_TABLE: [&str; 61] = [
     "48", "49", "50", "51", "52", "53", "54", "55", "56", "57", "58", "59", "60",
 ];
 
-pub const MONTH_NAME_TABLE: [[&str; 12]; 6] = [
+const MONTH_NAME_TABLE: [[&str; 12]; 6] = [
     [
         "January",
         "February",
@@ -93,7 +93,7 @@ pub const MONTH_NAME_TABLE: [[&str; 12]; 6] = [
     ],
 ];
 
-pub const DAY_NAME_TABLE: [[&str; 7]; 6] = [
+const DAY_NAME_TABLE: [[&str; 7]; 6] = [
     [
         "Sunday",
         "Monday",
@@ -124,6 +124,13 @@ pub const DAY_NAME_TABLE: [[&str; 7]; 6] = [
     ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
     ["sun", "mon", "tue", "wed", "thu", "fri", "sat"],
     ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+];
+
+const DAY_OF_WEEK_TABLE: [&str; 8] = ["0", "1", "2", "3", "4", "5", "6", "7"];
+
+const WEEK_OF_MONTH_TABLE: [&str; 32] = [
+    "0", "1", "1", "1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2", "2", "3", "3", "3", "3",
+    "3", "3", "3", "4", "4", "4", "4", "4", "4", "4", "5", "5", "5",
 ];
 
 pub trait DateTimeFormat:
@@ -184,6 +191,7 @@ impl DateTimeFormat for IntervalYM {
 
 impl DateTimeFormat for IntervalDT {
     const DAY_MAX_LENGTH: usize = 9;
+
     const HAS_DATE: bool = false;
     const HAS_TIME: bool = true;
     const HAS_FRACTION: bool = true;
@@ -346,12 +354,33 @@ impl NaiveDateTime {
                 .name(style))
         }
     }
+
+    #[inline]
+    pub fn day_of_week_str(&self, date: Option<Date>) -> Result<&str> {
+        if let Some(d) = date {
+            Ok(d.day_of_week().num_str())
+        } else {
+            Ok(Date::try_from_ymd(self.year, self.month, self.day)?
+                .day_of_week()
+                .num_str())
+        }
+    }
+
+    #[inline]
+    pub const fn week_of_month_str(&self) -> &str {
+        WEEK_OF_MONTH_TABLE[self.day as usize]
+    }
 }
 
 impl WeekDay {
     #[inline(always)]
     pub(crate) fn name(self, style: NameStyle) -> &'static str {
         DAY_NAME_TABLE[style as usize][self as usize - 1]
+    }
+
+    #[inline(always)]
+    pub(crate) fn num_str(self) -> &'static str {
+        DAY_OF_WEEK_TABLE[self as usize]
     }
 }
 
@@ -405,6 +434,10 @@ pub enum Field {
     Fraction(Option<u8>),
     /// 'AM', 'A.M.', 'PM', 'P.M.'
     AmPm(AmPmStyle),
+    /// 'D'
+    DayOfWeek,
+    /// 'W'
+    WeekOfMonth,
 }
 
 #[derive(Debug)]
@@ -796,9 +829,10 @@ impl<'a> FormatParser<'a> {
                                 self.back(1);
                                 self.parse_day_name()
                             }
+                            b' ' => Field::DayOfWeek,
                             _ => Field::Invalid,
                         },
-                        None => Field::Invalid,
+                        None => Field::DayOfWeek,
                     },
                     b'F' | b'f' => self.parse_fraction(),
                     b'H' | b'h' => self.parse_hour(),
@@ -830,6 +864,7 @@ impl<'a> FormatParser<'a> {
                         self.back(1);
                         self.parse_year()
                     }
+                    b'W' | b'w' => Field::WeekOfMonth,
                     _ => Field::Invalid,
                 };
                 Some(field)
@@ -995,6 +1030,20 @@ impl Formatter {
                 Field::DayName(style) => {
                     if T::HAS_DATE {
                         w.write_str(dt.week_day_name(datetime.date(), *style)?)?
+                    } else {
+                        return Err(Error::FormatError("date format not recognized".to_string()));
+                    }
+                }
+                Field::DayOfWeek => {
+                    if T::HAS_DATE {
+                        w.write_str(dt.day_of_week_str(datetime.date())?)?
+                    } else {
+                        return Err(Error::FormatError("date format not recognized".to_string()));
+                    }
+                }
+                Field::WeekOfMonth => {
+                    if T::HAS_DATE {
+                        w.write_str(dt.week_of_month_str())?
                     } else {
                         return Err(Error::FormatError("date format not recognized".to_string()));
                     }
@@ -1347,6 +1396,27 @@ impl Formatter {
                         return Err(Error::ParseError("date format not recognized".to_string()));
                     }
                 }
+                Field::DayOfWeek => {
+                    if T::HAS_DATE {
+                        if dow.is_some() {
+                            return Err(Error::ParseError(
+                                "format code (day of week) appears twice".to_string(),
+                            ));
+                        }
+                        let (d, rem) = parse_week_day_number(s)?;
+                        s = rem;
+
+                        dow = Some(d);
+                    } else {
+                        return Err(Error::ParseError("date format not recognized".to_string()));
+                    }
+                }
+                Field::WeekOfMonth => {
+                    return Err(Error::ParseError(
+                        "format code (week of month) cannot appear in date input format"
+                            .to_string(),
+                    ))
+                }
             }
         }
 
@@ -1585,6 +1655,20 @@ fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
     Err(Error::ParseError("not a valid day of the week".to_string()))
 }
 
+#[inline]
+fn parse_week_day_number(s: &[u8]) -> Result<(WeekDay, &[u8])> {
+    if s.is_empty() {
+        return Err(Error::ParseError("not a valid day of the week".to_string()));
+    }
+
+    let num = s[0] - b'0';
+    if (1..=7).contains(&num) {
+        return Ok((WeekDay::from(num as usize), &s[1..]));
+    }
+
+    Err(Error::ParseError("not a valid day of the week".to_string()))
+}
+
 pub struct LazyFormat<T: DateTimeFormat> {
     fmt: Formatter,
     dt: T,
@@ -1608,7 +1692,7 @@ impl<T: DateTimeFormat> fmt::Display for LazyFormat<T> {
 mod tests {
     use super::*;
     use crate::format::AmPmStyle::{Lower as AmLower, LowerDot, Upper as AmUpper, UpperDot};
-    use crate::format::Field::{AmPm, Blank, DayName, MonthName};
+    use crate::format::Field::{AmPm, Blank, DayName, DayOfWeek, MonthName};
     use crate::format::NameStyle::{AbbrCapital, AbbrLower, AbbrUpper, Capital, Lower, Upper};
 
     #[test]
@@ -1634,7 +1718,7 @@ mod tests {
     #[test]
     fn test_format_parser_param() {
         let mut parser = FormatParser::new(
-            b"MONTH  Month    month MON mon Mon DAY day Day DY Dy dy AM am A.M. a.m.",
+            b"MONTH  Month    month MON mon Mon DAY day Day DY Dy dy AM am A.M. a.m. D d",
         );
 
         let expect = [
@@ -1669,6 +1753,10 @@ mod tests {
             AmPm(UpperDot),
             Blank(1),
             AmPm(LowerDot),
+            Blank(1),
+            DayOfWeek,
+            Blank(1),
+            DayOfWeek,
         ];
         for e in expect.iter() {
             assert_eq!(e, &parser.next().unwrap())

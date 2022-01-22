@@ -683,6 +683,11 @@ mod tests {
 
                 assert!(Date::parse("9999\\12-31 11/59:59 59", "yyyy\\mm-dd hh/mi:ss mi").is_err());
 
+                assert!(
+                    Date::parse("2021-04-23 03:04:05 5 thu", "yyyy-mm-dd hh24:mi:ss d day")
+                        .is_err()
+                );
+
                 // todo duplication special check, including parse and format
             }
 
@@ -748,6 +753,7 @@ mod tests {
                 assert_eq!(format!("{}", date.format("MONtH").unwrap()), "AUGUST");
                 assert_eq!(format!("{}", date.format("Month").unwrap()), "August");
                 assert_eq!(format!("{}", date.format("month").unwrap()), "august");
+                assert_eq!(format!("{}", date.format("W").unwrap()), "1");
                 assert_eq!(format!("{}", date.format("DAY").unwrap()), "SUNDAY");
                 assert_eq!(format!("{}", date.format("DAy").unwrap()), "SUNDAY");
                 assert_eq!(format!("{}", date.format("Day").unwrap()), "Sunday");
@@ -757,18 +763,23 @@ mod tests {
                 assert_eq!(format!("{}", date.format("DY").unwrap()), "SUN");
                 assert_eq!(format!("{}", date.format("Dy").unwrap()), "Sun");
                 assert_eq!(format!("{}", date.format("dy").unwrap()), "sun");
+                assert_eq!(format!("{}", date.format("D").unwrap()), "1");
                 assert_eq!(format!("{}", date.format("mi").unwrap()), "08");
                 assert_eq!(format!("{}", date.format("hh").unwrap()), "07");
                 assert_eq!(format!("{}", date.format("ss").unwrap()), "09");
 
                 let date = generate_date(1970, 1, 1, 7, 8, 9);
                 assert_eq!(format!("{}", date.format("day").unwrap()), "thursday");
+                assert_eq!(format!("{}", date.format("D").unwrap()), "5");
+                assert_eq!(format!("{}", date.format("W").unwrap()), "1");
 
                 let date = generate_date(1970, 1, 2, 7, 8, 9);
                 assert_eq!(format!("{}", date.format("day").unwrap()), "friday");
 
                 let date = generate_date(1969, 12, 31, 7, 8, 9);
                 assert_eq!(format!("{}", date.format("day").unwrap()), "wednesday");
+                assert_eq!(format!("{}", date.format("D").unwrap()), "4");
+                assert_eq!(format!("{}", date.format("W").unwrap()), "5");
 
                 let date = generate_date(1969, 10, 1, 7, 8, 9);
                 assert_eq!(format!("{}", date.format("day").unwrap()), "wednesday");
@@ -814,7 +825,9 @@ mod tests {
                 let date = generate_date(2021, 4, 22, 3, 4, 5);
                 let ts2 =
                     Date::parse("2021-04-22 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss dy").unwrap();
+                let ts3 = Date::parse("2021-04-22 03:04:05 5", "yyyy-mm-dd hh24:mi:ss d").unwrap();
                 assert_eq!(date, ts2);
+                assert_eq!(date, ts3);
 
                 let ts2 = Date::parse("2021-04-22 03:04:05 thursday", "yyyy-mm-dd hh24:mi:ss dy")
                     .unwrap();
@@ -833,8 +846,12 @@ mod tests {
                 assert_eq!(date, ts2);
 
                 assert!(
-                    Date::parse("2021-04-23 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss dy",).is_err()
+                    Date::parse("2021-04-23 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss dy").is_err()
                 );
+
+                assert!(Date::parse("2021-04-23 03:04:05 5", "yyyy-mm-dd hh24:mi:ss d").is_err());
+
+                assert!(Date::parse("2021-04-22 03:04:05 ", "yyyy-mm-dd hh24:mi:ss d",).is_err());
             }
 
             // Duplicate format
@@ -843,40 +860,42 @@ mod tests {
                 assert_eq!(
                     format!(
                         "{}",
-                        date.format("DAY DaY DY MM MM yyyy YYYY MI MI").unwrap()
+                        date.format("DAY DaY DY D W MM MM yyyy YYYY MI MI").unwrap()
                     ),
-                    "SUNDAY Sunday SUN 04 04 2021 2021 04 04"
+                    "SUNDAY Sunday SUN 1 4 04 04 2021 2021 04 04"
                 );
             }
 
             // Invalid
             {
                 // Parse
-                assert!(Date::parse("2021-04-22 03:04:05", "yyyy-mmX-dd hh24:mi:ss",).is_err());
+                assert!(Date::parse("2021-04-22 03:04:05", "yyyy-mmX-dd hh24:mi:ss").is_err());
 
-                assert!(Date::parse("2021-04-22 03:04:05", "yyyy-mm-dd mi:ss",).is_err());
+                assert!(Date::parse("2021-04-22 03:04:05", "yyyy-mm-dd mi:ss").is_err());
 
-                assert!(Date::parse("2021-04-22 03:04:05", "yyy-mm-dd hh24:mi:ss",).is_err());
+                assert!(Date::parse("2021-04-22 03:04:05", "yyy-mm-dd hh24:mi:ss").is_err());
 
-                assert!(Date::parse("2021-04-32 03:04:05", "yyyy-mm-dd mi:ss",).is_err());
+                assert!(Date::parse("2021-04-32 03:04:05", "yyyy-mm-dd mi:ss").is_err());
 
-                assert!(Date::parse("10000-04-31 03:04:05", "yyyy-mm-dd mi:ss",).is_err());
+                assert!(Date::parse("10000-04-31 03:04:05", "yyyy-mm-dd mi:ss").is_err());
 
-                assert!(Date::parse("10000-04-31 33:04:05", "yyyy-mm-dd mi:ss",).is_err());
+                assert!(Date::parse("10000-04-31 33:04:05", "yyyy-mm-dd mi:ss").is_err());
 
-                assert!(Date::parse("2021-04-22 03:04:05", "ABCD-mm-dd hh24:mi:ss",).is_err());
+                assert!(Date::parse("2021-04-22 03:04:05", "ABCD-mm-dd hh24:mi:ss").is_err());
 
                 assert!(
-                    Date::parse("2021-04-23 03:04:05 thur", "yyyy-mm-dd hh24:mi:ss dy",).is_err()
+                    Date::parse("2021-04-23 03:04:05 thur", "yyyy-mm-dd hh24:mi:ss dy").is_err()
                 );
 
                 assert!(
-                    Date::parse("2021-04-22 03:04:05.12345", "yyyy-mm-dd hh24:mi:ss.ff",).is_err()
+                    Date::parse("2021-04-22 03:04:05.12345", "yyyy-mm-dd hh24:mi:ss.ff").is_err()
                 );
 
-                assert!(Date::parse("2021423 03:04:05", "yyyymmdd hh24:mi:ss",).is_err());
+                assert!(Date::parse("2021423 03:04:05", "yyyymmdd hh24:mi:ss").is_err());
 
-                assert!(Date::parse("2021423 03:04:05", "yyyymmdd hh24:mi:ss",).is_err());
+                assert!(Date::parse("2021423 03:04:05", "yyyymmdd hh24:mi:ss").is_err());
+
+                assert!(Date::parse("2021-04-23 03:04:05 4", "yyyy-mm-dd hh24:mi:ss w").is_err());
 
                 let date = generate_date(1234, 5, 6, 7, 8, 9);
                 assert!(date.format("testtest").is_err());

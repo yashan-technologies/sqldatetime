@@ -703,6 +703,13 @@ mod tests {
                     Timestamp::parse("23:00:60", "hh24:mi:ss").err().unwrap(),
                     Error::InvalidSecond
                 );
+
+                assert!(Timestamp::parse(
+                    "2021-04-25 03:04:05.000006 thu 5",
+                    "yyyy-mm-dd hh24:mi:ss.FF6 dy d",
+                )
+                .is_err());
+
                 // todo duplication special check, including parse and format
             }
 
@@ -852,6 +859,7 @@ mod tests {
                 assert_eq!(format!("{}", ts.format("MONtH").unwrap()), "AUGUST");
                 assert_eq!(format!("{}", ts.format("Month").unwrap()), "August");
                 assert_eq!(format!("{}", ts.format("month").unwrap()), "august");
+                assert_eq!(format!("{}", ts.format("W").unwrap()), "1");
                 assert_eq!(format!("{}", ts.format("DAY").unwrap()), "SUNDAY");
                 assert_eq!(format!("{}", ts.format("DAy").unwrap()), "SUNDAY");
                 assert_eq!(format!("{}", ts.format("Day").unwrap()), "Sunday");
@@ -861,6 +869,7 @@ mod tests {
                 assert_eq!(format!("{}", ts.format("DY").unwrap()), "SUN");
                 assert_eq!(format!("{}", ts.format("Dy").unwrap()), "Sun");
                 assert_eq!(format!("{}", ts.format("dy").unwrap()), "sun");
+                assert_eq!(format!("{}", ts.format("D").unwrap()), "1");
                 assert_eq!(format!("{}", ts.format("mi").unwrap()), "08");
                 assert_eq!(format!("{}", ts.format("hh").unwrap()), "07");
                 assert_eq!(format!("{}", ts.format("ss").unwrap()), "09");
@@ -886,12 +895,16 @@ mod tests {
 
                 let ts = generate_ts(1970, 1, 1, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "thursday");
+                assert_eq!(format!("{}", ts.format("d").unwrap()), "5");
+                assert_eq!(format!("{}", ts.format("w").unwrap()), "1");
 
                 let ts = generate_ts(1970, 1, 2, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "friday");
 
                 let ts = generate_ts(1969, 12, 31, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "wednesday");
+                assert_eq!(format!("{}", ts.format("d").unwrap()), "4");
+                assert_eq!(format!("{}", ts.format("w").unwrap()), "5");
 
                 let ts = generate_ts(1969, 10, 1, 7, 8, 9, 10);
                 assert_eq!(format!("{}", ts.format("day").unwrap()), "wednesday");
@@ -976,7 +989,13 @@ mod tests {
                     "yyyy-mm-dd hh24:mi:ss.FF6 dy",
                 )
                 .unwrap();
+                let ts3 = Timestamp::parse(
+                    "2021-04-22 03:04:05.000006 5",
+                    "yyyy-mm-dd hh24:mi:ss.FF6 d",
+                )
+                .unwrap();
                 assert_eq!(ts, ts2);
+                assert_eq!(ts, ts3);
 
                 let ts2 = Timestamp::parse(
                     "2021-04-22 03:04:05.000006 thursday",
@@ -1011,14 +1030,29 @@ mod tests {
                     "yyyy-mm-dd hh24:mi:ss.FF6 dy",
                 )
                 .is_err());
+
+                assert!(Timestamp::parse(
+                    "2021-04-23 03:04:05.000006 5",
+                    "yyyy-mm-dd hh24:mi:ss.FF6 d",
+                )
+                .is_err());
+
+                assert!(Timestamp::parse(
+                    "2021-04-22 03:04:05.000006 ",
+                    "yyyy-mm-dd hh24:mi:ss.FF6 d",
+                )
+                .is_err());
             }
 
             // Duplicate format
             {
                 let ts = generate_ts(2021, 4, 25, 3, 4, 5, 6);
                 assert_eq!(
-                    format!("{}", ts.format("DAY DaY DY MM MM yyyy YYYY MI MI").unwrap()),
-                    "SUNDAY Sunday SUN 04 04 2021 2021 04 04"
+                    format!(
+                        "{}",
+                        ts.format("DAY DaY DY D W MM MM yyyy YYYY MI MI").unwrap()
+                    ),
+                    "SUNDAY Sunday SUN 1 4 04 04 2021 2021 04 04"
                 );
             }
 
@@ -1032,27 +1066,25 @@ mod tests {
                 .is_err());
 
                 assert!(
-                    Timestamp::parse("2021-04-22 03:04:05.000006", "yyyy-mm-dd mi:ss.FF7",)
+                    Timestamp::parse("2021-04-22 03:04:05.000006", "yyyy-mm-dd mi:ss.FF7").is_err()
+                );
+
+                assert!(
+                    Timestamp::parse("2021-04-22 03:04:05.000006", "yyy-mm-dd hh24:mi:ss.FF7")
                         .is_err()
                 );
 
                 assert!(
-                    Timestamp::parse("2021-04-22 03:04:05.000006", "yyy-mm-dd hh24:mi:ss.FF7",)
+                    Timestamp::parse("2021-04-32 03:04:05.000006", "yyyy-mm-dd mi:ss.FF7").is_err()
+                );
+
+                assert!(
+                    Timestamp::parse("10000-04-31 03:04:05.000006", "yyyy-mm-dd mi:ss.FF6")
                         .is_err()
                 );
 
                 assert!(
-                    Timestamp::parse("2021-04-32 03:04:05.000006", "yyyy-mm-dd mi:ss.FF7",)
-                        .is_err()
-                );
-
-                assert!(
-                    Timestamp::parse("10000-04-31 03:04:05.000006", "yyyy-mm-dd mi:ss.FF6",)
-                        .is_err()
-                );
-
-                assert!(
-                    Timestamp::parse("10000-04-31 33:04:05.000006", "yyyy-mm-dd mi:ss.FF6",)
+                    Timestamp::parse("10000-04-31 33:04:05.000006", "yyyy-mm-dd mi:ss.FF6")
                         .is_err()
                 );
 
@@ -1069,19 +1101,23 @@ mod tests {
                 .is_err());
 
                 assert!(
-                    Timestamp::parse("2021423 03:04:05.000006", "yyyymmdd hh24:mi:ss.FF6",)
-                        .is_err()
+                    Timestamp::parse("2021423 03:04:05.000006", "yyyymmdd hh24:mi:ss.FF6").is_err()
                 );
 
                 assert!(
-                    Timestamp::parse("2021423 03:04:05.000006", "yyyymmdd hh24:mi:ss.FF3",)
-                        .is_err()
+                    Timestamp::parse("2021423 03:04:05.000006", "yyyymmdd hh24:mi:ss.FF3").is_err()
                 );
 
                 let timestamp = generate_ts(1234, 5, 6, 7, 8, 9, 10);
                 assert!(timestamp.format("testtest").is_err());
 
-                assert!(Timestamp::parse("2021423 03:04:05", "yyyymmdd am hh:mi:ss",).is_err());
+                assert!(Timestamp::parse("2021423 03:04:05", "yyyymmdd am hh:mi:ss").is_err());
+
+                assert!(Timestamp::parse(
+                    "2021-04-23 03:04:05.000006 4",
+                    "yyyy-mm-dd hh24:mi:ss.FF6 w",
+                )
+                .is_err());
             }
 
             // todo

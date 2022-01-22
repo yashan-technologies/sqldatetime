@@ -15,7 +15,9 @@ use std::fmt::Display;
 type DateSubMethod = fn(Date, i32) -> Result<Date>;
 
 pub const UNIX_EPOCH_DOW: WeekDay = WeekDay::Thursday;
+
 const ROUNDS_UP_DAY: u32 = 16;
+
 const ISO_YEAR_TABLE: [(DateSubMethod, i32); 8] = [
     (sub_to_date, 0), // Unreachable
     (sub_to_date, -1),
@@ -812,6 +814,8 @@ mod tests {
 
         // Duplicate parse
         {
+            assert!(Date::parse("2021-04-22 thu 5", "yyyy-mm-dd dy d").is_err());
+
             // todo All types duplication check, including parse and format
         }
 
@@ -838,6 +842,7 @@ mod tests {
             assert_eq!(format!("{}", date.format("MONtH").unwrap()), "AUGUST");
             assert_eq!(format!("{}", date.format("Month").unwrap()), "August");
             assert_eq!(format!("{}", date.format("month").unwrap()), "august");
+            assert_eq!(format!("{}", date.format("W").unwrap()), "1");
             assert_eq!(format!("{}", date.format("DAY").unwrap()), "SUNDAY");
             assert_eq!(format!("{}", date.format("DAy").unwrap()), "SUNDAY");
             assert_eq!(format!("{}", date.format("Day").unwrap()), "Sunday");
@@ -847,6 +852,7 @@ mod tests {
             assert_eq!(format!("{}", date.format("DY").unwrap()), "SUN");
             assert_eq!(format!("{}", date.format("Dy").unwrap()), "Sun");
             assert_eq!(format!("{}", date.format("dy").unwrap()), "sun");
+            assert_eq!(format!("{}", date.format("D").unwrap()), "1");
         }
 
         // Normal
@@ -877,35 +883,42 @@ mod tests {
         {
             let date = generate_date(2021, 4, 22);
             let date2 = Date::parse("2021-04-22 thu", "yyyy-mm-dd dy").unwrap();
+            let date3 = Date::parse("2021-04-22 5", "yyyy-mm-dd d").unwrap();
             assert_eq!(date, date2);
+            assert_eq!(date, date3);
 
-            assert!(Date::parse("2021-04-23 thur", "yyyy-mm-dd dy",).is_err());
+            assert!(Date::parse("2021-04-23 thur", "yyyy-mm-dd dy").is_err());
 
-            assert!(Date::parse("2021-04-27 tues", "yyyy-mm-dd dy",).is_err());
+            assert!(Date::parse("2021-04-27 tues", "yyyy-mm-dd dy").is_err());
+
+            assert!(Date::parse("2021-04-23 5", "yyyy-mm-dd d").is_err());
+
+            assert!(Date::parse("2021-04-22 ", "yyyy-mm-dd d",).is_err());
         }
 
         // Duplicate format
         {
             let date = generate_date(2021, 4, 25);
             assert_eq!(
-                format!("{}", date.format("DAY DaY DY MM MM yyyy YYYY").unwrap()),
-                "SUNDAY Sunday SUN 04 04 2021 2021"
+                format!("{}", date.format("DAY DaY DY D W MM MM yyyy YYYY").unwrap()),
+                "SUNDAY Sunday SUN 1 4 04 04 2021 2021"
             );
         }
 
         // Invalid
         {
             // Parse
-            assert!(Date::parse("2021-04-22", "yyyy-mmX-dd",).is_err());
-            assert!(Date::parse("2021-04-22", "yyy-mm-dd",).is_err());
-            assert!(Date::parse("2021-04-32", "yyyy-mm-dd",).is_err());
-            assert!(Date::parse("10000-04-30", "yyyy-mm-dd",).is_err());
-            assert!(Date::parse("2021-04-22", "ABCD-mm-dd",).is_err());
-            assert!(Date::parse("2021423", "yyyymmdd",).is_err());
-            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd hh",).is_err());
-            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd mi",).is_err());
-            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ss",).is_err());
-            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ff",).is_err());
+            assert!(Date::parse("2021-04-22", "yyyy-mmX-dd").is_err());
+            assert!(Date::parse("2021-04-22", "yyy-mm-dd").is_err());
+            assert!(Date::parse("2021-04-32", "yyyy-mm-dd").is_err());
+            assert!(Date::parse("10000-04-30", "yyyy-mm-dd").is_err());
+            assert!(Date::parse("2021-04-22", "ABCD-mm-dd").is_err());
+            assert!(Date::parse("2021423", "yyyymmdd").is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd hh").is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd mi").is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ss").is_err());
+            assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ff").is_err());
+            assert!(Date::parse("2021-04-25 4", "yyyy-mm-dd w").is_err());
         }
     }
 
