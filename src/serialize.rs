@@ -4,6 +4,7 @@ use crate::{Date, Formatter, IntervalDT, IntervalYM, Time, Timestamp};
 use once_cell::sync::Lazy;
 use serde_crate::de::Visitor;
 use serde_crate::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+use stack_buf::StackStr;
 use std::fmt;
 
 static DATE_FORMATTER: Lazy<Formatter> = Lazy::new(|| Formatter::try_new("YYYY-MM-DD").unwrap());
@@ -20,6 +21,8 @@ static INTERVAL_DT_FORMATTER: Lazy<Formatter> =
 static ORACLE_DATE_FORMATTER: Lazy<Formatter> =
     Lazy::new(|| Formatter::try_new("YYYY-MM-DD HH24:MI:SS").unwrap());
 
+type StrBuf = StackStr<32>;
+
 #[cfg_attr(docsrs, doc(cfg(feature = "serde")))]
 impl Serialize for Date {
     #[inline]
@@ -28,7 +31,7 @@ impl Serialize for Date {
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let mut buf = String::new();
+            let mut buf = StrBuf::new();
             DATE_FORMATTER
                 .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;
@@ -89,7 +92,7 @@ impl Serialize for Timestamp {
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let mut buf = String::new();
+            let mut buf = StrBuf::new();
             TIMESTAMP_FORMATTER
                 .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;
@@ -150,7 +153,7 @@ impl Serialize for Time {
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let mut buf = String::new();
+            let mut buf = StrBuf::new();
             TIME_FORMATTER
                 .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;
@@ -211,7 +214,7 @@ impl Serialize for IntervalYM {
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let mut buf = String::new();
+            let mut buf = StrBuf::new();
             INTERVAL_YM_FORMATTER
                 .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;
@@ -272,7 +275,7 @@ impl Serialize for IntervalDT {
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let mut buf = String::new();
+            let mut buf = StrBuf::new();
             INTERVAL_DT_FORMATTER
                 .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;
@@ -334,7 +337,7 @@ impl Serialize for crate::oracle::Date {
         S: Serializer,
     {
         if serializer.is_human_readable() {
-            let mut buf = String::new();
+            let mut buf = StrBuf::new();
             ORACLE_DATE_FORMATTER
                 .format(*self, &mut buf)
                 .map_err(ser::Error::custom)?;

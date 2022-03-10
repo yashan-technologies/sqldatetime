@@ -12,7 +12,7 @@ homepage = "https://github.com/cod-technologies/sqldatetime"
 documentation = "https://docs.rs/sqldatetime/"
 
 [features]
-serde = ["serde_crate", "once_cell"]
+serde = ["serde_crate", "once_cell", "stack-buf/str"]
 oracle = []
 
 [dependencies]
