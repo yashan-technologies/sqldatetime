@@ -1,5 +1,6 @@
 //! Error definitions.
 
+use std::collections::TryReserveError;
 use thiserror::Error;
 
 /// A type alias for `Result<T, Error>`.
@@ -38,11 +39,23 @@ pub enum Error {
     FormatError(String),
     #[error("{0}")]
     ParseError(String),
+    #[error("{0}")]
+    TryReserveError(TryReserveError),
 }
 
 impl From<std::fmt::Error> for Error {
     #[inline]
     fn from(e: std::fmt::Error) -> Self {
-        Error::FormatError(e.to_string())
+        match try_format!("{}", e) {
+            Ok(s) => Error::FormatError(s),
+            Err(e) => e,
+        }
+    }
+}
+
+impl From<TryReserveError> for Error {
+    #[inline]
+    fn from(e: TryReserveError) -> Self {
+        Error::TryReserveError(e)
     }
 }

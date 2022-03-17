@@ -7,6 +7,9 @@
 
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
+#[macro_use]
+mod util;
+
 mod common;
 mod date;
 mod error;
