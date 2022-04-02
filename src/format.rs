@@ -1,6 +1,6 @@
 //! Formatting (and parsing) utilities for date and time.
 
-use crate::common::DATE_MIN_YEAR;
+use crate::common::{the_day_of_year, DATE_MIN_YEAR};
 use crate::date::{Month, WeekDay};
 use crate::error::Result;
 use crate::format::NameStyle::{AbbrCapital, Capital};
@@ -129,9 +129,72 @@ const DAY_NAME_TABLE: [[&str; 7]; 6] = [
 
 const DAY_OF_WEEK_TABLE: [&str; 8] = ["0", "1", "2", "3", "4", "5", "6", "7"];
 
+#[rustfmt::skip]
 const WEEK_OF_MONTH_TABLE: [&str; 32] = [
-    "0", "1", "1", "1", "1", "1", "1", "1", "2", "2", "2", "2", "2", "2", "2", "3", "3", "3", "3",
-    "3", "3", "3", "4", "4", "4", "4", "4", "4", "4", "5", "5", "5",
+    "0",
+    "1", "1", "1", "1", "1", "1", "1",
+    "2", "2", "2", "2", "2", "2", "2",
+    "3", "3", "3", "3", "3", "3", "3",
+    "4", "4", "4", "4", "4", "4", "4",
+    "5", "5", "5",
+];
+
+#[rustfmt::skip]
+const WEEK_OF_YEAR_TABLE: [&str; 367] = [
+    "00",
+    "01", "01", "01", "01", "01", "01", "01",
+    "02", "02", "02", "02", "02", "02", "02",
+    "03", "03", "03", "03", "03", "03", "03",
+    "04", "04", "04", "04", "04", "04", "04",
+    "05", "05", "05", "05", "05", "05", "05",
+    "06", "06", "06", "06", "06", "06", "06",
+    "07", "07", "07", "07", "07", "07", "07",
+    "08", "08", "08", "08", "08", "08", "08",
+    "09", "09", "09", "09", "09", "09", "09",
+    "10", "10", "10", "10", "10", "10", "10",
+    "11", "11", "11", "11", "11", "11", "11",
+    "12", "12", "12", "12", "12", "12", "12",
+    "13", "13", "13", "13", "13", "13", "13",
+    "14", "14", "14", "14", "14", "14", "14",
+    "15", "15", "15", "15", "15", "15", "15",
+    "16", "16", "16", "16", "16", "16", "16",
+    "17", "17", "17", "17", "17", "17", "17",
+    "18", "18", "18", "18", "18", "18", "18",
+    "19", "19", "19", "19", "19", "19", "19",
+    "20", "20", "20", "20", "20", "20", "20",
+    "21", "21", "21", "21", "21", "21", "21",
+    "22", "22", "22", "22", "22", "22", "22",
+    "23", "23", "23", "23", "23", "23", "23",
+    "24", "24", "24", "24", "24", "24", "24",
+    "25", "25", "25", "25", "25", "25", "25",
+    "26", "26", "26", "26", "26", "26", "26",
+    "27", "27", "27", "27", "27", "27", "27",
+    "28", "28", "28", "28", "28", "28", "28",
+    "29", "29", "29", "29", "29", "29", "29",
+    "30", "30", "30", "30", "30", "30", "30",
+    "31", "31", "31", "31", "31", "31", "31",
+    "32", "32", "32", "32", "32", "32", "32",
+    "33", "33", "33", "33", "33", "33", "33",
+    "34", "34", "34", "34", "34", "34", "34",
+    "35", "35", "35", "35", "35", "35", "35",
+    "36", "36", "36", "36", "36", "36", "36",
+    "37", "37", "37", "37", "37", "37", "37",
+    "38", "38", "38", "38", "38", "38", "38",
+    "39", "39", "39", "39", "39", "39", "39",
+    "40", "40", "40", "40", "40", "40", "40",
+    "41", "41", "41", "41", "41", "41", "41",
+    "42", "42", "42", "42", "42", "42", "42",
+    "43", "43", "43", "43", "43", "43", "43",
+    "44", "44", "44", "44", "44", "44", "44",
+    "45", "45", "45", "45", "45", "45", "45",
+    "46", "46", "46", "46", "46", "46", "46",
+    "47", "47", "47", "47", "47", "47", "47",
+    "48", "48", "48", "48", "48", "48", "48",
+    "49", "49", "49", "49", "49", "49", "49",
+    "50", "50", "50", "50", "50", "50", "50",
+    "51", "51", "51", "51", "51", "51", "51",
+    "52", "52", "52", "52", "52", "52", "52",
+    "53", "53",
 ];
 
 pub trait DateTimeFormat:
@@ -371,6 +434,11 @@ impl NaiveDateTime {
     pub const fn week_of_month_str(&self) -> &str {
         WEEK_OF_MONTH_TABLE[self.day as usize]
     }
+
+    #[inline]
+    pub const fn week_of_year_str(&self) -> &str {
+        WEEK_OF_YEAR_TABLE[the_day_of_year(self.year, self.month, self.day) as usize]
+    }
 }
 
 impl WeekDay {
@@ -439,6 +507,8 @@ pub enum Field {
     DayOfWeek,
     /// 'W'
     WeekOfMonth,
+    /// 'WW'
+    WeekOfYear,
 }
 
 #[derive(Debug)]
@@ -830,8 +900,7 @@ impl<'a> FormatParser<'a> {
                                 self.back(1);
                                 self.parse_day_name()
                             }
-                            b' ' => Field::DayOfWeek,
-                            _ => Field::Invalid,
+                            _ => Field::DayOfWeek,
                         },
                         None => Field::DayOfWeek,
                     },
@@ -865,7 +934,16 @@ impl<'a> FormatParser<'a> {
                         self.back(1);
                         self.parse_year()
                     }
-                    b'W' | b'w' => Field::WeekOfMonth,
+                    b'W' | b'w' => match self.peek() {
+                        Some(ch) => match ch {
+                            b'W' | b'w' => {
+                                self.advance(1);
+                                Field::WeekOfYear
+                            }
+                            _ => Field::WeekOfMonth,
+                        },
+                        None => Field::WeekOfMonth,
+                    },
                     _ => Field::Invalid,
                 };
                 Some(field)
@@ -1069,6 +1147,15 @@ impl Formatter {
                 Field::WeekOfMonth => {
                     if T::HAS_DATE {
                         w.write_str(dt.week_of_month_str())?
+                    } else {
+                        return Err(Error::FormatError(
+                            "date format not recognized".try_to_string()?,
+                        ));
+                    }
+                }
+                Field::WeekOfYear => {
+                    if T::HAS_DATE {
+                        w.write_str(dt.week_of_year_str())?
                     } else {
                         return Err(Error::FormatError(
                             "date format not recognized".try_to_string()?,
@@ -1466,6 +1553,12 @@ impl Formatter {
                 Field::WeekOfMonth => {
                     return Err(Error::ParseError(
                         "format code (week of month) cannot appear in date input format"
+                            .try_to_string()?,
+                    ))
+                }
+                Field::WeekOfYear => {
+                    return Err(Error::ParseError(
+                        "format code (week of year) cannot appear in date input format"
                             .try_to_string()?,
                     ))
                 }
@@ -1874,5 +1967,18 @@ mod tests {
         assert(123456789, "0123456789", 10);
         assert(123456789, "123456789", 9);
         assert(u32::MAX, "4294967295", 10);
+    }
+
+    #[test]
+    fn test_week_of_year_table() {
+        for i in 1..=366 {
+            let week = (i + 6) / 7;
+            let week_str = if week < 10 {
+                format!("0{}", week)
+            } else {
+                week.to_string()
+            };
+            assert_eq!(week_str.as_str(), WEEK_OF_YEAR_TABLE[i as usize]);
+        }
     }
 }

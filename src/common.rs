@@ -101,3 +101,13 @@ pub const fn days_of_month(year: i32, month: u32) -> u32 {
 
     DAY_TABLE[is_leap_year(year) as usize][month as usize - 1]
 }
+
+#[inline(always)]
+pub const fn the_day_of_year(year: i32, month: u32, day: u32) -> u32 {
+    const SUM_OF_DAYS_TABLE: [[u32; 12]; 2] = [
+        [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
+        [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],
+    ];
+
+    SUM_OF_DAYS_TABLE[is_leap_year(year) as usize][month as usize - 1] + day
+}

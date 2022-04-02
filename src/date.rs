@@ -842,6 +842,7 @@ mod tests {
             assert_eq!(format!("{}", date.format("MONtH").unwrap()), "AUGUST");
             assert_eq!(format!("{}", date.format("Month").unwrap()), "August");
             assert_eq!(format!("{}", date.format("month").unwrap()), "august");
+            assert_eq!(format!("{}", date.format("WW").unwrap()), "32");
             assert_eq!(format!("{}", date.format("W").unwrap()), "1");
             assert_eq!(format!("{}", date.format("DAY").unwrap()), "SUNDAY");
             assert_eq!(format!("{}", date.format("DAy").unwrap()), "SUNDAY");
@@ -900,8 +901,16 @@ mod tests {
         {
             let date = generate_date(2021, 4, 25);
             assert_eq!(
-                format!("{}", date.format("DAY DaY DY D W MM MM yyyy YYYY").unwrap()),
-                "SUNDAY Sunday SUN 1 4 04 04 2021 2021"
+                format!(
+                    "{}",
+                    date.format("DAY DaY DY D W WW WW MM MM yyyy YYYY").unwrap()
+                ),
+                "SUNDAY Sunday SUN 1 4 17 17 04 04 2021 2021"
+            );
+
+            assert_eq!(
+                format!("{}", date.format("DAYDaYDYDWWWWWDMMMMyyyyYYYY").unwrap()),
+                "SUNDAYSundaySUN1171741040420212021"
             );
         }
 
@@ -919,6 +928,7 @@ mod tests {
             assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ss").is_err());
             assert!(Date::parse("2021-04-22 11", "yyyy-mm-dd ff").is_err());
             assert!(Date::parse("2021-04-25 4", "yyyy-mm-dd w").is_err());
+            assert!(Date::parse("2021-04-25 17", "yyyy-mm-dd ww").is_err());
         }
     }
 
