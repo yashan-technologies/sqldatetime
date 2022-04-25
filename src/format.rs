@@ -1274,7 +1274,7 @@ impl Formatter {
                 // todo ignore the absence of symbols; Format exact
                 Field::Invalid => unreachable!(),
                 Field::Blank(_) => {}
-                Field::Hyphen => expect_char!(b'-'),
+                Field::Hyphen => expect_char_with_tolerence!(b'-'),
                 Field::Colon => expect_char_with_tolerence!(b':'),
                 Field::Slash => expect_char!(b'/'),
                 Field::Backslash => expect_char!(b'\\'),
@@ -1647,7 +1647,11 @@ fn parse_number(input: &[u8], max_len: usize) -> Result<(bool, i32, &[u8])> {
             b'-' => (true, &input[1..]),
             _ => (false, input),
         },
-        None => return Err(Error::ParseError("invalid number".try_to_string()?)),
+        None => {
+            return Err(Error::ParseError(
+                "the input is inconsistent with the format".try_to_string()?,
+            ))
+        }
     };
 
     let (digits, s) = eat_digits(s, max_len);

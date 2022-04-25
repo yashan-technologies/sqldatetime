@@ -409,6 +409,9 @@ mod tests {
                 let time = Time::parse("", "HH24:MI:SS").unwrap();
                 assert_eq!(time, Time::try_from_hms(0, 0, 0, 0).unwrap());
 
+                let time = Time::parse("", "HH24-MI-SS").unwrap();
+                assert_eq!(time, Time::try_from_hms(0, 0, 0, 0).unwrap());
+
                 let time = Time::parse("11", "HH24:MI:SS").unwrap();
                 assert_eq!(time, Time::try_from_hms(11, 0, 0, 0).unwrap());
 

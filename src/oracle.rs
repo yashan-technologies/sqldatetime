@@ -720,6 +720,10 @@ mod tests {
                 let date = Date::parse("2021-12-15", "yyyy-mm-dd hh24:mi:ss").unwrap();
                 assert_eq!(dt, date);
 
+                let dt = generate_date(2021, 12, 15, 0, 0, 0);
+                let date = Date::parse("2021-12-15", "yyyy-mm-dd hh24-mi-ss").unwrap();
+                assert_eq!(dt, date);
+
                 let dt = generate_date(2021, 12, 15, 11, 0, 0);
                 let date = Date::parse("2021-12-15 11", "yyyy-mm-dd hh24:mi:ss").unwrap();
                 assert_eq!(dt, date);
@@ -739,6 +743,11 @@ mod tests {
                 let dt = generate_date(2021, 12, 15, 11, 23, 0);
                 let date = Date::parse("2021-12-15 11:23", "yyyy-mm-dd hh:mi:ss").unwrap();
                 assert_eq!(dt, date);
+            }
+
+            // Can not absence of year\month\day
+            {
+                assert!(Date::parse("2022-4", "yyyy-mm-dd").is_err());
             }
 
             // Short format

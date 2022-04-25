@@ -830,6 +830,11 @@ mod tests {
             assert_eq!(date, dt);
         }
 
+        // Can not absence of year\month\day
+        {
+            assert!(Date::parse("2022-4", "yyyy-mm-dd").is_err());
+        }
+
         // Short format
         {
             let date = generate_date(1234, 8, 6);

@@ -799,6 +799,9 @@ mod tests {
                 let timestamp = Timestamp::parse("2020-11-12", "YYYY-MM-DD HH24:MI:SS").unwrap();
                 assert_eq!(timestamp, generate_ts(2020, 11, 12, 0, 0, 0, 0));
 
+                let timestamp = Timestamp::parse("2020-11-12", "YYYY-MM-DD HH24-MI-SS").unwrap();
+                assert_eq!(timestamp, generate_ts(2020, 11, 12, 0, 0, 0, 0));
+
                 let timestamp = Timestamp::parse("2020-11-12 11", "YYYY-MM-DD HH24:MI:SS").unwrap();
                 assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 0, 0, 0));
 
@@ -845,6 +848,11 @@ mod tests {
                     Timestamp::parse("2020-11-12 11:23:25      ", "YYYY-MM-DD HH:MI:SS.ff PM")
                         .unwrap();
                 assert_eq!(timestamp, generate_ts(2020, 11, 12, 11, 23, 25, 0));
+            }
+
+            // Can not absence of year\month\day
+            {
+                assert!(Timestamp::parse("2022-4", "YYYY-MM-DD HH24:MI:SS.FF").is_err());
             }
 
             // Short format
