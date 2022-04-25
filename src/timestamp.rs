@@ -318,11 +318,10 @@ impl Round for Timestamp {
     #[inline]
     fn round_week(self) -> Result<Self> {
         let (mut date, time) = self.extract();
-        let (year, month, day) = date.extract();
-        // Never round to next year.
-        if time.hour().unwrap() >= 12 && (month != 12 && day != 31) {
+        if time.hour().unwrap() >= 12 {
             date = date.add_days(1)?;
         }
+        let year = date.extract().0;
 
         Ok(date.round_week_internal(year)?.and_zero_time())
     }
@@ -339,19 +338,10 @@ impl Round for Timestamp {
     #[inline]
     fn round_month_start_week(self) -> Result<Self> {
         let (mut date, time) = self.extract();
-        let temp_date = date;
-        let (_, month, mut day) = temp_date.extract();
-
         if time.hour().unwrap() >= 12 {
             date = date.add_days(1)?;
-            // Never round to next month or next year.
-            let (_, round_month, round_day) = date.extract();
-            if round_month != month {
-                date = temp_date;
-            } else {
-                day = round_day;
-            }
         }
+        let day = date.extract().2;
 
         Ok(date
             .round_month_start_week_internal(day as i32)?
@@ -1545,13 +1535,12 @@ mod tests {
         let ts = generate_ts(DATE_MAX_YEAR, 12, 31, 23, 59, 30, 0);
 
         // Would not overflow
-        assert!(ts.round_week().is_ok());
-
         assert!(ts.round_century().is_err());
         assert!(ts.round_year().is_err());
         assert!(ts.round_iso_year().is_err());
         assert!(ts.round_quarter().is_err());
         assert!(ts.round_month().is_err());
+        assert!(ts.round_week().is_err());
         assert!(ts.round_iso_week().is_err());
         assert!(ts.round_month_start_week().is_err());
         assert!(ts.round_day().is_err());
@@ -1734,7 +1723,7 @@ mod tests {
             generate_ts(2021, 2, 5, 0, 0, 0, 0),
             generate_ts(2021, 2, 1, 12, 0, 0, 0).round_week().unwrap()
         );
-        // Never round to next year
+        // Round to next year
         assert_eq!(
             generate_ts(2021, 12, 31, 0, 0, 0, 0),
             generate_ts(2021, 12, 31, 11, 59, 59, 59)
@@ -1742,7 +1731,7 @@ mod tests {
                 .unwrap()
         );
         assert_eq!(
-            generate_ts(2021, 12, 31, 0, 0, 0, 0),
+            generate_ts(2022, 1, 1, 0, 0, 0, 0),
             generate_ts(2021, 12, 31, 12, 0, 0, 0).round_week().unwrap()
         );
 
@@ -1815,7 +1804,7 @@ mod tests {
                 .round_month_start_week()
                 .unwrap()
         );
-        // Never round to next month
+        // Round to next month
         assert_eq!(
             generate_ts(2021, 11, 29, 0, 0, 0, 0),
             generate_ts(2021, 11, 30, 11, 59, 59, 59)
@@ -1823,12 +1812,12 @@ mod tests {
                 .unwrap()
         );
         assert_eq!(
-            generate_ts(2021, 11, 29, 0, 0, 0, 0),
+            generate_ts(2021, 12, 1, 0, 0, 0, 0),
             generate_ts(2021, 11, 30, 12, 0, 0, 0)
                 .round_month_start_week()
                 .unwrap()
         );
-        // Never round to next year
+        // Round to next year
         assert_eq!(
             generate_ts(2021, 12, 29, 0, 0, 0, 0),
             generate_ts(2021, 12, 31, 11, 59, 59, 59)
@@ -1836,7 +1825,7 @@ mod tests {
                 .unwrap()
         );
         assert_eq!(
-            generate_ts(2021, 12, 29, 0, 0, 0, 0),
+            generate_ts(2022, 1, 1, 0, 0, 0, 0),
             generate_ts(2021, 12, 31, 12, 0, 0, 0)
                 .round_month_start_week()
                 .unwrap()
