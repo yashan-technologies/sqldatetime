@@ -156,6 +156,28 @@ impl Date {
         true
     }
 
+    /// Checks the given year, month, and day fields for building Date.
+    #[inline]
+    pub(crate) const fn validate_ymd(year: i32, month: u32, day: u32) -> Result<()> {
+        if year < DATE_MIN_YEAR || year > DATE_MAX_YEAR {
+            return Err(Error::DateOutOfRange);
+        }
+
+        if month < 1 || month > MONTHS_PER_YEAR {
+            return Err(Error::InvalidMonth);
+        }
+
+        if day < 1 || day > 31 {
+            return Err(Error::InvalidDay);
+        }
+
+        if day > days_of_month(year, month) {
+            return Err(Error::InvalidDate);
+        }
+
+        Ok(())
+    }
+
     /// Gets the days from Unix Epoch of this `Date`.
     #[inline(always)]
     pub const fn days(self) -> i32 {

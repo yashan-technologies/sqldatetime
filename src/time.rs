@@ -81,6 +81,24 @@ impl Time {
         true
     }
 
+    /// Checks the given hour, minute, second fields for building Time.
+    #[inline]
+    pub(crate) const fn validate_hms(hour: u32, minute: u32, sec: u32) -> Result<()> {
+        if hour >= HOURS_PER_DAY {
+            return Err(Error::TimeOutOfRange);
+        }
+
+        if minute >= MINUTES_PER_HOUR {
+            return Err(Error::InvalidMinute);
+        }
+
+        if sec >= SECONDS_PER_MINUTE {
+            return Err(Error::InvalidSecond);
+        }
+
+        Ok(())
+    }
+
     /// Gets the microseconds of `Time`.
     #[inline(always)]
     pub const fn usecs(self) -> i64 {
@@ -218,7 +236,13 @@ impl TryFrom<&NaiveDateTime> for Time {
 
     #[inline]
     fn try_from(dt: &NaiveDateTime) -> Result<Self> {
-        Time::try_from_hms(dt.hour, dt.minute, dt.sec, dt.usec)
+        Time::validate_hms(dt.hour, dt.minute, dt.sec)?;
+        let total_usec = dt.hour as i64 * USECONDS_PER_HOUR
+            + dt.minute as i64 * USECONDS_PER_MINUTE
+            + dt.sec as i64 * USECONDS_PER_SECOND
+            + dt.usec as i64;
+
+        Time::try_from_usecs(total_usec)
     }
 }
 
@@ -294,6 +318,93 @@ mod tests {
         let time = Time::try_from_hms(23, 59, 5, 0).unwrap();
         let time2 = Time::parse("23595", "HH24MISS").unwrap();
         assert_eq!(time2, time);
+
+        // Test parse with rounding usec
+        {
+            // Round usec
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(1, 0, 59, 888889) },
+                Time::parse("1:0:59.8888885", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(1, 0, 1, 0) },
+                Time::parse("1:0:0.9999999", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(1, 0, 59, 888889) },
+                Time::parse("1:0:59.8888885", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(1, 0, 59, 888889) },
+                Time::parse("1:0:59.8888885", "HH24:MI:SS.FF").unwrap()
+            );
+            // Round usec and second to minute
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(1, 1, 0, 0) },
+                Time::parse("1:0:59.9999995", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(23, 59, 0, 0) },
+                Time::parse("23:58:59.9999999", "HH24:MI:SS.FF").unwrap()
+            );
+            // Round usec, second and minute to hour
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(2, 0, 0, 0) },
+                Time::parse("1:59:59.9999995", "HH24:MI:SS.FF").unwrap()
+            );
+
+            // No round
+            assert_eq!(
+                unsafe { Time::from_hms_unchecked(1, 0, 59, 888888) },
+                Time::parse("1:0:59.8888881", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                Time::MAX,
+                Time::parse("23:59:59.999999", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                Time::MAX,
+                Time::parse("23:59:59.9999991", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                Time::MAX,
+                Time::parse("23:59:59.999999119", "HH24:MI:SS.FF").unwrap()
+            );
+            assert_eq!(
+                Time::MAX,
+                Time::parse("23:59:59.9999994", "HH24:MI:SS.FF").unwrap()
+            );
+
+            // Out of range
+            // Hours
+            assert_eq!(
+                Err(Error::TimeOutOfRange),
+                Time::parse("24:59:59.9999995", "HH24:MI:SS.FF")
+            );
+            assert_eq!(
+                Err(Error::TimeOutOfRange),
+                Time::parse("25:59:59.9999995", "HH24:MI:SS.FF")
+            );
+            // Minutes
+            assert_eq!(
+                Err(Error::InvalidMinute),
+                Time::parse("23:60:59.9999995", "HH24:MI:SS.FF")
+            );
+            // Seconds
+            assert_eq!(
+                Err(Error::InvalidSecond),
+                Time::parse("23:59:60.9999995", "HH24:MI:SS.FF")
+            );
+            // Maximum Value
+            assert_eq!(
+                Err(Error::TimeOutOfRange),
+                Time::parse("23:59:59.9999995", "HH24:MI:SS.FF")
+            );
+            assert_eq!(
+                Err(Error::TimeOutOfRange),
+                Time::parse("23:59:59.99999999", "HH24:MI:SS.FF")
+            );
+        }
 
         // parse/format with fraction
         {
@@ -453,7 +564,6 @@ mod tests {
             assert!(Time::parse("60", "hh").is_err());
             assert!(Time::parse("60", "hh").is_err());
             assert!(Time::parse("13", "hh").is_err());
-            assert!(Time::parse("99999999", "FF").is_err());
 
             assert!(Time::parse("23635", "HHMISS").is_err());
             let time = Time::try_from_hms(1, 2, 3, 4).unwrap();

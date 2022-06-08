@@ -1,6 +1,6 @@
 //! Timestamp implementation.
 
-use crate::common::{days_of_month, is_valid_timestamp, USECONDS_PER_DAY};
+use crate::common::*;
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{Date, DateTime, IntervalDT, IntervalYM, Round, Time, Trunc};
@@ -429,7 +429,17 @@ impl TryFrom<NaiveDateTime> for Timestamp {
 
     #[inline]
     fn try_from(dt: NaiveDateTime) -> Result<Self> {
-        Ok(Date::try_from(&dt)?.and_time(Time::try_from(&dt)?))
+        Date::validate_ymd(dt.year, dt.month, dt.day)?;
+        Time::validate_hms(dt.hour, dt.minute, dt.sec)?;
+
+        let days = date2julian(dt.year, dt.month, dt.day) - UNIX_EPOCH_JULIAN;
+        let total_usec = days as i64 * USECONDS_PER_DAY
+            + dt.hour as i64 * USECONDS_PER_HOUR
+            + dt.minute as i64 * USECONDS_PER_MINUTE
+            + dt.sec as i64 * USECONDS_PER_SECOND
+            + dt.usec as i64;
+
+        Timestamp::try_from_usecs(total_usec)
     }
 }
 
@@ -614,6 +624,127 @@ mod tests {
             let (date, time) = ts.extract();
             assert_eq!(date.extract(), (1969, 10, 31));
             assert_eq!(time.extract(), (1, 1, 1, 1));
+
+            // Test parse with rounding usec
+            {
+                // Round usec
+                // Day
+                assert_eq!(
+                    Timestamp::new(
+                        Date::try_from_ymd(2022, 10, 24).unwrap(),
+                        Time::try_from_hms(0, 0, 0, 0).unwrap(),
+                    ),
+                    Timestamp::parse("2022-10-23 23:59:59.9999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+                // Month
+                assert_eq!(
+                    Timestamp::new(
+                        Date::try_from_ymd(2022, 11, 1).unwrap(),
+                        Time::try_from_hms(0, 0, 0, 0).unwrap(),
+                    ),
+                    Timestamp::parse("2022-10-31 23:59:59.9999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+                // Year
+                assert_eq!(
+                    Timestamp::new(
+                        Date::try_from_ymd(2023, 1, 1).unwrap(),
+                        Time::try_from_hms(0, 0, 0, 0).unwrap(),
+                    ),
+                    Timestamp::parse("2022-12-31 23:59:59.9999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+
+                // No round
+                assert_eq!(
+                    Timestamp::new(
+                        Date::try_from_ymd(2022, 6, 18).unwrap(),
+                        Time::try_from_hms(3, 4, 5, 6).unwrap(),
+                    ),
+                    Timestamp::parse("2022-06-18 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+                assert_eq!(
+                    Timestamp::MAX,
+                    Timestamp::parse("9999-12-31 23:59:59.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+                assert_eq!(
+                    Timestamp::MAX,
+                    Timestamp::parse("9999-12-31 23:59:59.9999991", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+                assert_eq!(
+                    Timestamp::MAX,
+                    Timestamp::parse("9999-12-31 23:59:59.999999119", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+                assert_eq!(
+                    Timestamp::MAX,
+                    Timestamp::parse("9999-12-31 23:59:59.9999994", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap()
+                );
+
+                // Out of range
+                // Year
+                assert!(Timestamp::parse(
+                    "10000-12-31 23:59:59.999999",
+                    "yyyy-mm-dd hh24:mi:ss.ff"
+                )
+                .is_err());
+                assert!(Timestamp::parse(
+                    "20000-12-31 23:59:59.999999",
+                    "yyyy-mm-dd hh24:mi:ss.ff"
+                )
+                .is_err());
+                // Month
+                assert_eq!(
+                    Err(Error::InvalidMonth),
+                    Timestamp::parse("9999-13-31 24:60:59.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                assert_eq!(
+                    Err(Error::InvalidMonth),
+                    Timestamp::parse("9999-20-31 24:60:59.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                // Day
+                assert_eq!(
+                    Err(Error::InvalidDay),
+                    Timestamp::parse("9999-12-32 24:59:60.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                assert_eq!(
+                    Err(Error::InvalidDay),
+                    Timestamp::parse("9999-12-40 24:59:60.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                // Hour
+                assert_eq!(
+                    Err(Error::TimeOutOfRange),
+                    Timestamp::parse("9999-12-31 24:59:59.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                assert_eq!(
+                    Err(Error::TimeOutOfRange),
+                    Timestamp::parse("9999-12-31 25:59:59.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                // Minute
+                assert_eq!(
+                    Err(Error::InvalidMinute),
+                    Timestamp::parse("9999-12-31 23:60:59.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                // Second
+                assert_eq!(
+                    Err(Error::InvalidSecond),
+                    Timestamp::parse("9999-12-31 23:59:60.999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                // Maximum Value
+                assert_eq!(
+                    Err(Error::DateOutOfRange),
+                    Timestamp::parse("9999-12-31 23:59:59.9999995", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+                assert_eq!(
+                    Err(Error::DateOutOfRange),
+                    Timestamp::parse("9999-12-31 23:59:59.99999999", "yyyy-mm-dd hh24:mi:ss.ff")
+                );
+            }
 
             // Out of order
             {
