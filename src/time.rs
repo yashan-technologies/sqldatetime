@@ -217,6 +217,14 @@ impl From<Timestamp> for Time {
     }
 }
 
+impl From<IntervalDT> for Time {
+    #[inline(always)]
+    fn from(interval: IntervalDT) -> Self {
+        let usec = interval.usecs().abs() % USECONDS_PER_DAY;
+        unsafe { Time::from_usecs_unchecked(usec) }
+    }
+}
+
 impl PartialEq<IntervalDT> for Time {
     #[inline]
     fn eq(&self, other: &IntervalDT) -> bool {
@@ -769,5 +777,30 @@ mod tests {
         test_extract(12, 0, 0, 0);
         test_extract(16, 34, 59, 356);
         test_extract(23, 59, 59, 999999);
+    }
+
+    #[test]
+    fn test_time_from_interval_dt() {
+        assert_eq!(Time::ZERO, Time::from(IntervalDT::ZERO));
+        assert_eq!(Time::ZERO, Time::from(IntervalDT::MIN));
+        assert_eq!(Time::ZERO, Time::from(IntervalDT::MAX));
+        assert_eq!(
+            Time::ZERO,
+            Time::from(unsafe { IntervalDT::from_dhms_unchecked(0, 0, 0, 0, 0) })
+        );
+        assert_eq!(
+            Time::MAX,
+            Time::from(unsafe { IntervalDT::from_dhms_unchecked(0, 23, 59, 59, 999999) })
+        );
+        assert_eq!(
+            Time::MAX,
+            Time::from(unsafe { IntervalDT::from_dhms_unchecked(100, 23, 59, 59, 999999) })
+        );
+        assert_eq!(
+            Time::MAX,
+            Time::from(unsafe {
+                IntervalDT::from_dhms_unchecked(100, 23, 59, 59, 999999).negate()
+            })
+        );
     }
 }
