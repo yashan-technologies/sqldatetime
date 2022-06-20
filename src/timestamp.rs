@@ -1172,21 +1172,21 @@ mod tests {
                 assert_eq!(ts, ts3);
 
                 let ts2 = Timestamp::parse(
-                    "2021-04-22 03:04:05.000006 thursday",
+                    "2021-04-22 03:04:05.000006 thu",
                     "yyyy-mm-dd hh24:mi:ss.FF6 dy",
                 )
                 .unwrap();
                 assert_eq!(ts, ts2);
 
                 let ts2 = Timestamp::parse(
-                    "2021-04-22 03:04:05.000006 thu",
+                    "2021-04-22 03:04:05.000006 thursday",
                     "yyyy-mm-dd hh24:mi:ss.FF6 day",
                 )
                 .unwrap();
                 assert_eq!(ts, ts2);
 
                 let ts2 = Timestamp::parse(
-                    "2021-04-22 03:04:05.000006 thursday",
+                    "2021-04-22 03:04:05.000006 thu",
                     "yyyy-mm-dd hh24:mi:ss.FF6 Dy",
                 )
                 .unwrap();

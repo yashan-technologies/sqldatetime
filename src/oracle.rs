@@ -683,10 +683,11 @@ mod tests {
 
                 assert!(Date::parse("9999\\12-31 11/59:59 59", "yyyy\\mm-dd hh/mi:ss mi").is_err());
 
-                assert!(
-                    Date::parse("2021-04-23 03:04:05 5 thu", "yyyy-mm-dd hh24:mi:ss d day")
-                        .is_err()
-                );
+                assert!(Date::parse(
+                    "2021-04-23 03:04:05 5 thursday",
+                    "yyyy-mm-dd hh24:mi:ss d day"
+                )
+                .is_err());
 
                 // todo duplication special check, including parse and format
             }
@@ -841,16 +842,16 @@ mod tests {
                 assert_eq!(date, ts2);
                 assert_eq!(date, ts3);
 
-                let ts2 = Date::parse("2021-04-22 03:04:05 thursday", "yyyy-mm-dd hh24:mi:ss dy")
+                let ts2 =
+                    Date::parse("2021-04-22 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss dy").unwrap();
+                assert_eq!(date, ts2);
+
+                let ts2 = Date::parse("2021-04-22 03:04:05 thursday", "yyyy-mm-dd hh24:mi:ss day")
                     .unwrap();
                 assert_eq!(date, ts2);
 
                 let ts2 =
-                    Date::parse("2021-04-22 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss day").unwrap();
-                assert_eq!(date, ts2);
-
-                let ts2 = Date::parse("2021-04-22 03:04:05 thursday", "yyyy-mm-dd hh24:mi:ss Dy")
-                    .unwrap();
+                    Date::parse("2021-04-22 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss Dy").unwrap();
                 assert_eq!(date, ts2);
 
                 let ts2 =
@@ -905,7 +906,7 @@ mod tests {
                 assert!(Date::parse("2021-04-22 03:04:05", "ABCD-mm-dd hh24:mi:ss").is_err());
 
                 assert!(
-                    Date::parse("2021-04-23 03:04:05 thur", "yyyy-mm-dd hh24:mi:ss dy").is_err()
+                    Date::parse("2021-04-23 03:04:05 thu", "yyyy-mm-dd hh24:mi:ss dy").is_err()
                 );
 
                 assert!(

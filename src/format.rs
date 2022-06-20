@@ -1530,14 +1530,14 @@ impl Formatter {
                         ));
                     }
                 }
-                Field::DayName(_) => {
+                Field::DayName(style) => {
                     if T::HAS_DATE {
                         if dow.is_some() {
                             return Err(Error::ParseError(
                                 "format code (day of week) appears twice".try_to_string()?,
                             ));
                         }
-                        let (d, rem) = parse_week_day_name(s)?;
+                        let (d, rem) = parse_week_day_name(s, *style)?;
                         s = rem;
 
                         dow = Some(d);
@@ -1806,16 +1806,21 @@ fn parse_month_name(s: &[u8]) -> Result<(Month, &[u8])> {
 }
 
 #[inline]
-fn parse_week_day_name(s: &[u8]) -> Result<(WeekDay, &[u8])> {
-    for (index, day) in DAY_NAME_TABLE[Capital as usize].iter().enumerate() {
-        if CaseInsensitive::starts_with(s, day.as_bytes()) {
-            return Ok((WeekDay::from(index + 1), &s[day.len()..]));
+fn parse_week_day_name(s: &[u8], style: NameStyle) -> Result<(WeekDay, &[u8])> {
+    match style {
+        Capital | NameStyle::Lower | NameStyle::Upper => {
+            for (index, day) in DAY_NAME_TABLE[Capital as usize].iter().enumerate() {
+                if CaseInsensitive::starts_with(s, day.as_bytes()) {
+                    return Ok((WeekDay::from(index + 1), &s[day.len()..]));
+                }
+            }
         }
-    }
-
-    for (index, day) in DAY_NAME_TABLE[AbbrCapital as usize].iter().enumerate() {
-        if CaseInsensitive::starts_with(s, day.as_bytes()) {
-            return Ok((WeekDay::from(index + 1), &s[day.len()..]));
+        AbbrCapital | NameStyle::AbbrLower | NameStyle::AbbrUpper => {
+            for (index, day) in DAY_NAME_TABLE[AbbrCapital as usize].iter().enumerate() {
+                if CaseInsensitive::starts_with(s, day.as_bytes()) {
+                    return Ok((WeekDay::from(index + 1), &s[day.len()..]));
+                }
+            }
         }
     }
 
