@@ -849,6 +849,15 @@ mod tests {
                 assert_eq!(timestamp, ts);
 
                 let timestamp = generate_ts(year, 1, 1, 0, 0, 0, 0);
+                let ts = Timestamp::parse("jan", "mm").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let ts = Timestamp::parse("January", "mm").unwrap();
+                assert_eq!(timestamp, ts);
+
+                let ts = Timestamp::parse("JANUARY", "mm").unwrap();
+                assert_eq!(timestamp, ts);
+
                 let ts = Timestamp::parse("jan", "MONTH").unwrap();
                 assert_eq!(timestamp, ts);
 
@@ -1111,6 +1120,39 @@ mod tests {
                 assert_eq!(format!("{}", timestamp.format("ff").unwrap()), "123456");
                 assert_eq!(format!("{}", timestamp.format("ff9").unwrap()), "123456000");
                 assert_eq!(format!("{}", timestamp.format("ff5").unwrap()), "12345");
+            }
+
+            // Month parse check
+            {
+                let ts = generate_ts(2021, 4, 22, 3, 4, 5, 6);
+                let ts1 =
+                    Timestamp::parse("2021-04-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                let ts2 =
+                    Timestamp::parse("2021-APRIL-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                let ts3 =
+                    Timestamp::parse("2021-APR-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                let ts4 =
+                    Timestamp::parse("2021-April-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                let ts5 =
+                    Timestamp::parse("2021-Apr-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                let ts6 =
+                    Timestamp::parse("2021-april-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                let ts7 =
+                    Timestamp::parse("2021-apr-22 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss.ff")
+                        .unwrap();
+                assert_eq!(ts, ts1);
+                assert_eq!(ts, ts2);
+                assert_eq!(ts, ts3);
+                assert_eq!(ts, ts4);
+                assert_eq!(ts, ts5);
+                assert_eq!(ts, ts6);
+                assert_eq!(ts, ts7);
             }
 
             // Day parse check

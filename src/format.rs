@@ -1317,11 +1317,25 @@ impl Formatter {
                                 "format code (month) appears twice".try_to_string()?,
                             ));
                         }
-                        let (month, negative) = expect_number!(T::MONTH_MAX_LENGTH);
-                        if negative {
-                            return Err(Error::ParseError("not a valid month".try_to_string()?));
-                        }
-                        dt.month = month as u32;
+
+                        let month = match parse_number(s, T::MONTH_MAX_LENGTH) {
+                            Ok((negative, month, rem)) => {
+                                if negative {
+                                    return Err(Error::ParseError(
+                                        "not a valid month".try_to_string()?,
+                                    ));
+                                }
+                                s = rem;
+                                month as u32
+                            }
+                            Err(_) => {
+                                let (month, rem) = parse_month_name(s)?;
+                                s = rem;
+                                month as u32
+                            }
+                        };
+
+                        dt.month = month;
                         is_month_set = true;
                     } else {
                         return Err(Error::ParseError(
