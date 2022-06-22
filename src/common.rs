@@ -23,6 +23,11 @@ pub const TIMESTAMP_MIN: i64 = (DATE_MIN_JULIAN - UNIX_EPOCH_JULIAN) as i64 * US
 pub const TIMESTAMP_MAX: i64 =
     (date2julian(10000, 1, 1) - UNIX_EPOCH_JULIAN) as i64 * USECONDS_PER_DAY - 1;
 
+const SUM_OF_DAYS_TABLE: [[u32; 12]; 2] = [
+    [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
+    [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],
+];
+
 /// Calendar date to Julian day conversion.
 /// Julian date is commonly used in astronomical applications,
 /// since it is numerically accurate and computationally simple.
@@ -88,26 +93,35 @@ pub const fn is_valid_time(time: i64) -> bool {
 }
 
 #[inline(always)]
-const fn is_leap_year(year: i32) -> bool {
+pub const fn is_leap_year(year: i32) -> bool {
     year % 4 == 0 && ((year % 100) != 0 || (year % 400) == 0)
 }
 
 #[inline(always)]
 pub const fn days_of_month(year: i32, month: u32) -> u32 {
-    const DAY_TABLE: [[u32; 12]; 2] = [
-        [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
-        [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+    const DAY_TABLE: [[u32; 13]; 2] = [
+        [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
+        [0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31],
     ];
 
-    DAY_TABLE[is_leap_year(year) as usize][month as usize - 1]
+    DAY_TABLE[is_leap_year(year) as usize][month as usize]
 }
 
 #[inline(always)]
 pub const fn the_day_of_year(year: i32, month: u32, day: u32) -> u32 {
-    const SUM_OF_DAYS_TABLE: [[u32; 12]; 2] = [
-        [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334],
-        [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335],
-    ];
-
     SUM_OF_DAYS_TABLE[is_leap_year(year) as usize][month as usize - 1] + day
+}
+
+#[inline(always)]
+pub fn the_month_day_of_days(days: u32, is_leap_year: bool) -> (u32, u32) {
+    debug_assert!(days > 0);
+    debug_assert!((is_leap_year && days <= 366) || (!is_leap_year && days <= 365));
+
+    let sum_of_days = &SUM_OF_DAYS_TABLE[is_leap_year as usize];
+    let month = match sum_of_days.binary_search(&days) {
+        Ok(i) => i,
+        Err(i) => i,
+    };
+
+    (month as u32, days - sum_of_days[month - 1])
 }

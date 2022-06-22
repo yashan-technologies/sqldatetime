@@ -881,6 +881,7 @@ mod tests {
             assert_eq!(format!("{}", date.format("Dy").unwrap()), "Sun");
             assert_eq!(format!("{}", date.format("dy").unwrap()), "sun");
             assert_eq!(format!("{}", date.format("D").unwrap()), "1");
+            assert_eq!(format!("{}", date.format("DDD").unwrap()), "218");
         }
 
         // Normal
@@ -915,6 +916,50 @@ mod tests {
             assert_eq!(date, date2);
             assert_eq!(date, date3);
 
+            let date = generate_date(2022, 6, 21);
+            let date2 = Date::parse("2022 172", "yyyy ddd").unwrap();
+            let date3 = Date::parse("2022-6-21 172", "yyyy-mm-dd ddd").unwrap();
+            assert_eq!(date, date2);
+            assert_eq!(date, date3);
+
+            let date = generate_date(2022, 1, 2);
+            let date2 = Date::parse("2022 2", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 1, 30);
+            let date2 = Date::parse("2022 30", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 1, 31);
+            let date2 = Date::parse("2022 31", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 3, 1);
+            let date2 = Date::parse("2022 60", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 8, 22);
+            let date2 = Date::parse("2022 234", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 9, 30);
+            let date2 = Date::parse("2022 273", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 12, 2);
+            let date2 = Date::parse("2022 336", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            let date = generate_date(2022, 12, 31);
+            let date2 = Date::parse("2022 365", "yyyy ddd").unwrap();
+            assert_eq!(date, date2);
+
+            assert!(Date::parse("-172", "ddd").is_err());
+            assert!(Date::parse("0", "ddd").is_err());
+            assert!(Date::parse("672", "ddd").is_err());
+
+            assert!(Date::parse("2022-6-20 172", "yyyy-mm-dd ddd").is_err());
+
             assert!(Date::parse("2021-04-23 thur", "yyyy-mm-dd dy").is_err());
 
             assert!(Date::parse("2021-04-27 tues", "yyyy-mm-dd dy").is_err());
@@ -930,14 +975,15 @@ mod tests {
             assert_eq!(
                 format!(
                     "{}",
-                    date.format("DAY DaY DY D W WW WW MM MM yyyy YYYY").unwrap()
+                    date.format("DAY DaY DY D W WW WW MM MM yyyy YYYY DDD")
+                        .unwrap()
                 ),
-                "SUNDAY Sunday SUN 1 4 17 17 04 04 2021 2021"
+                "SUNDAY Sunday SUN 1 4 17 17 04 04 2021 2021 115"
             );
 
             assert_eq!(
-                format!("{}", date.format("DAYDaYDYDWWWWWDMMMMyyyyYYYY").unwrap()),
-                "SUNDAYSundaySUN1171741040420212021"
+                format!("{}", date.format("DAYDaYDYDWWWWWDMMMMyyyyYYYYDDD").unwrap()),
+                "SUNDAYSundaySUN1171741040420212021115"
             );
         }
 
