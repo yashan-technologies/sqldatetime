@@ -605,13 +605,10 @@ impl Round for Date {
 
         let (mut year, month, day) = self.extract();
         let is_round = day >= ROUNDS_UP_DAY;
-        if year == DATE_MAX_YEAR && is_round {
-            return Err(Error::DateOutOfRange);
-        }
 
         let index = month as usize - 1;
         let quarter_month = if is_round {
-            if month == 11 {
+            if month >= 11 {
                 year += 1;
             }
             QUARTER_ROUND_MONTH[index]
@@ -621,6 +618,10 @@ impl Round for Date {
             }
             QUARTER_TRUNC_MONTH[index]
         };
+
+        if year > DATE_MAX_YEAR {
+            return Err(Error::DateOutOfRange);
+        }
 
         Ok(unsafe { Date::from_ymd_unchecked(year, quarter_month, 1) })
     }
@@ -1453,12 +1454,29 @@ mod tests {
 
     #[test]
     fn test_round_overflow() {
-        let dt = generate_date(DATE_MAX_YEAR, 12, 31);
-        assert!(dt.round_century().is_err());
-        assert!(dt.round_year().is_err());
-        assert!(dt.round_quarter().is_err());
-        assert!(dt.round_month().is_err());
-        assert!(dt.round_sunday_start_week().is_err());
+        let dt_max = generate_date(DATE_MAX_YEAR, 12, 31);
+
+        let dt1 = generate_date(9951, 1, 1);
+        assert!(dt1.round_century().is_err());
+        assert!(dt_max.round_century().is_err());
+
+        let dt1 = generate_date(DATE_MAX_YEAR, 7, 1);
+        assert!(dt1.round_year().is_err());
+        assert!(dt_max.round_year().is_err());
+
+        let dt1 = generate_date(DATE_MAX_YEAR, 11, 16);
+        let dt2 = generate_date(DATE_MAX_YEAR, 12, 1);
+        let dt3 = generate_date(DATE_MAX_YEAR, 12, 16);
+        assert!(dt1.round_quarter().is_err());
+        assert!(dt2.round_quarter().is_err());
+        assert!(dt3.round_quarter().is_err());
+        assert!(dt_max.round_quarter().is_err());
+
+        let dt1 = generate_date(DATE_MAX_YEAR, 12, 16);
+        assert!(dt1.round_month().is_err());
+        assert!(dt_max.round_month().is_err());
+
+        assert!(dt_max.round_sunday_start_week().is_err());
     }
 
     #[test]
@@ -1515,6 +1533,22 @@ mod tests {
         assert_eq!(
             generate_date(2022, 1, 1),
             generate_date(2021, 11, 16).round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_date(2022, 1, 1),
+            generate_date(2021, 12, 16).round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_date(2022, 1, 1),
+            generate_date(2021, 12, 30).round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_date(9999, 4, 1),
+            generate_date(9999, 2, 28).round_quarter().unwrap()
+        );
+        assert_eq!(
+            generate_date(9999, 7, 1),
+            generate_date(9999, 5, 28).round_quarter().unwrap()
         );
         assert_eq!(generate_date(1996, 11, 1), dt.round_month().unwrap());
         assert_eq!(
