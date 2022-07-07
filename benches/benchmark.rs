@@ -88,7 +88,7 @@ fn timestamp_format(bench: &mut Bencher) {
     let fmt = Formatter::try_new("yyyy-mm-dd hh24:mi:ss.ff").unwrap();
     bench.iter(|| {
         let mut s = StackVec::<u8, 100>::new();
-        let _n = fmt.format(black_box(ts), &mut s).unwrap();
+        fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
 
@@ -97,7 +97,7 @@ fn timestamp_format_dow(bench: &mut Bencher) {
     let fmt = Formatter::try_new("yyyy-mm-dd hh24:mi:ss.ff day").unwrap();
     bench.iter(|| {
         let mut s = StackVec::<u8, 100>::new();
-        let _n = fmt.format(black_box(ts), &mut s).unwrap();
+        fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
 
@@ -228,7 +228,7 @@ fn date_format(bench: &mut Bencher) {
     let fmt = Formatter::try_new("yyyy-mm-dd").unwrap();
     bench.iter(|| {
         let mut s = StackVec::<u8, 100>::new();
-        let _n = fmt.format(black_box(ts), &mut s).unwrap();
+        fmt.format(black_box(ts), &mut s).unwrap();
     })
 }
 
@@ -560,7 +560,7 @@ fn time_format(bench: &mut Bencher) {
     let fmt = Formatter::try_new("hh24:mi:ss.ff").unwrap();
     bench.iter(|| {
         let mut s = StackVec::<u8, 100>::new();
-        let _n = fmt.format(black_box(tm), &mut s).unwrap();
+        fmt.format(black_box(tm), &mut s).unwrap();
     })
 }
 
@@ -606,7 +606,7 @@ fn interval_dt_format(bench: &mut Bencher) {
     let fmt = Formatter::try_new("dd hh24:mi:ss.ff").unwrap();
     bench.iter(|| {
         let mut s = StackVec::<u8, 100>::new();
-        let _n = fmt.format(black_box(ds), &mut s).unwrap();
+        fmt.format(black_box(ds), &mut s).unwrap();
     })
 }
 
@@ -660,7 +660,7 @@ fn interval_ym_format(bench: &mut Bencher) {
     let fmt = Formatter::try_new("yy-mm").unwrap();
     bench.iter(|| {
         let mut s = StackVec::<u8, 100>::new();
-        let _n = fmt.format(black_box(ym), &mut s).unwrap();
+        fmt.format(black_box(ym), &mut s).unwrap();
     })
 }
 
@@ -725,7 +725,7 @@ mod oracle_bench {
         let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss")).unwrap());
         bench.iter(|| {
             let mut s = StackVec::<u8, 100>::new();
-            let _n = fmt.format(black_box(od), &mut s).unwrap();
+            fmt.format(black_box(od), &mut s).unwrap();
         })
     }
 
@@ -734,7 +734,7 @@ mod oracle_bench {
         let fmt = black_box(Formatter::try_new(black_box("yyyy-mm-dd hh24:mi:ss day")).unwrap());
         bench.iter(|| {
             let mut s = StackVec::<u8, 100>::new();
-            let _n = fmt.format(black_box(od), &mut s).unwrap();
+            fmt.format(black_box(od), &mut s).unwrap();
         })
     }
 

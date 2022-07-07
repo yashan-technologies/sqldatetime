@@ -1428,7 +1428,7 @@ impl Formatter {
                                     .try_to_string()?,
                             ));
                         }
-                        dt.day = day.abs() as u32;
+                        dt.day = day.unsigned_abs();
                         dt.negative = negative;
                         is_day_set = true;
                     } else {
