@@ -1282,7 +1282,7 @@ impl Formatter {
             }};
         }
 
-        macro_rules! expect_char_with_tolerence {
+        macro_rules! expect_char_with_tolerance {
             ($ch: expr) => {{
                 if expect_char(s, $ch) {
                     s = &s[1..];
@@ -1345,12 +1345,12 @@ impl Formatter {
                 // todo ignore the absence of symbols; Format exact
                 Field::Invalid => unreachable!(),
                 Field::Blank(_) => {}
-                Field::Hyphen => expect_char_with_tolerence!(b'-'),
-                Field::Colon => expect_char_with_tolerence!(b':'),
+                Field::Hyphen => expect_char_with_tolerance!(b'-'),
+                Field::Colon => expect_char_with_tolerance!(b':'),
                 Field::Slash => expect_char!(b'/'),
                 Field::Backslash => expect_char!(b'\\'),
                 Field::Comma => expect_char!(b','),
-                Field::Dot => expect_char_with_tolerence!(b'.'),
+                Field::Dot => expect_char_with_tolerance!(b'.'),
                 Field::Semicolon => expect_char!(b';'),
                 Field::T => expect_char!(b'T'),
                 Field::Year(n) => {
