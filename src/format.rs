@@ -1283,16 +1283,18 @@ impl Formatter {
         }
 
         macro_rules! expect_char_with_tolerance {
-            ($ch: expr) => {{
-                if expect_char(s, $ch) {
-                    s = &s[1..];
-                } else if s.is_empty() {
-                    continue;
-                } else {
-                    return Err(Error::ParseError(try_format!(
-                        "the input {} is inconsistent with the format",
-                        input.as_ref()
-                    )?));
+            ($expected: expr) => {{
+                match s.first() {
+                    Some(ch) if *ch == $expected => {
+                        s = &s[1..];
+                    }
+                    None => continue,
+                    _ => {
+                        return Err(Error::ParseError(try_format!(
+                            "the input {} is inconsistent with the format",
+                            input.as_ref()
+                        )?));
+                    }
                 }
             }};
         }
