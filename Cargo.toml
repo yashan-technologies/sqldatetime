@@ -16,16 +16,16 @@ serde = ["serde_crate", "once_cell", "stack-buf/str"]
 oracle = []
 
 [dependencies]
-thiserror = "1.0.31"
+thiserror = "1.0.32"
 stack-buf = "0.1.6"
-serde_crate = { package = "serde", version = "1.0.138", optional = true }
+serde_crate = { package = "serde", version = "1.0.142", optional = true }
 once_cell = { version = "1.13.0", features = ["default", "parking_lot"], optional = true }
 chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 
 [dev-dependencies]
 bencher = "0.1.5"
-serde_crate = { package = "serde", version = "1.0.138", features = ["derive"] }
-serde_json = "1.0.82"
+serde_crate = { package = "serde", version = "1.0.142", features = ["derive"] }
+serde_json = "1.0.83"
 bincode = "1.3.3"
 
 [[bench]]
