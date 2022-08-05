@@ -20,7 +20,7 @@ thiserror = "1.0.32"
 stack-buf = "0.1.6"
 serde_crate = { package = "serde", version = "1.0.142", optional = true }
 once_cell = { version = "1.13.0", features = ["default", "parking_lot"], optional = true }
-chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
+chrono = { version = "0.4.20", default-features = false, features = ["clock"] }
 
 [dev-dependencies]
 bencher = "0.1.5"
