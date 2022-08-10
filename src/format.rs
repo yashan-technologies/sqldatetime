@@ -1265,8 +1265,9 @@ impl Formatter {
         &self,
         input: S,
     ) -> Result<T> {
-        let mut s = input.as_ref().as_bytes();
+        const COMPATIBLE_SEPARATOR: [u8; 7] = [b'.', b':', b'-', b'/', b'\\', b',', b';'];
 
+        let mut s = input.as_ref().as_bytes();
         let mut dt = NaiveDateTime::new();
 
         macro_rules! expect_char {
@@ -1278,23 +1279,6 @@ impl Formatter {
                         "the input {} is inconsistent with the format",
                         input.as_ref()
                     )?));
-                }
-            }};
-        }
-
-        macro_rules! expect_char_with_tolerance {
-            ($expected: expr) => {{
-                match s.first() {
-                    Some(ch) if *ch == $expected => {
-                        s = &s[1..];
-                    }
-                    None => continue,
-                    _ => {
-                        return Err(Error::ParseError(try_format!(
-                            "the input {} is inconsistent with the format",
-                            input.as_ref()
-                        )?));
-                    }
                 }
             }};
         }
@@ -1347,13 +1331,24 @@ impl Formatter {
                 // todo ignore the absence of symbols; Format exact
                 Field::Invalid => unreachable!(),
                 Field::Blank(_) => {}
-                Field::Hyphen => expect_char_with_tolerance!(b'-'),
-                Field::Colon => expect_char_with_tolerance!(b':'),
-                Field::Slash => expect_char!(b'/'),
-                Field::Backslash => expect_char!(b'\\'),
-                Field::Comma => expect_char!(b','),
-                Field::Dot => expect_char_with_tolerance!(b'.'),
-                Field::Semicolon => expect_char!(b';'),
+                Field::Hyphen
+                | Field::Colon
+                | Field::Slash
+                | Field::Backslash
+                | Field::Comma
+                | Field::Dot
+                | Field::Semicolon => match s.first() {
+                    Some(ch) if COMPATIBLE_SEPARATOR.contains(ch) => {
+                        s = &s[1..];
+                    }
+                    None => continue,
+                    _ => {
+                        return Err(Error::ParseError(try_format!(
+                            "the input {} is inconsistent with the format",
+                            input.as_ref()
+                        )?));
+                    }
+                },
                 Field::T => expect_char!(b'T'),
                 Field::Year(n) => {
                     if T::HAS_DATE || T::IS_INTERVAL_YM {
@@ -2152,5 +2147,79 @@ mod tests {
             };
             assert_eq!(day_str.as_str(), DAY_OF_YEAR_TABLE[day as usize]);
         }
+    }
+
+    #[test]
+    fn test_parse_fmt_compatible() {
+        let fmts = [
+            "yyyy.mm.dd.hh24.mi.ss.ff",
+            "yyyy:mm:dd:hh24:mi:ss:ff",
+            "yyyy-mm-dd-hh24-mi-ss-ff",
+            "yyyy/mm/dd/hh24/mi/ss/ff",
+            "yyyy\\mm\\dd\\hh24\\mi\\ss\\ff",
+            "yyyy,mm,dd,hh24,mi,ss,ff",
+            "yyyy;mm;dd;hh24;mi;ss;ff",
+        ];
+
+        for fmt in fmts {
+            // Normal punctuations
+            assert_eq!(
+                Timestamp::new(
+                    Date::try_from_ymd(2022, 6, 18).unwrap(),
+                    Time::try_from_hms(3, 4, 5, 6).unwrap(),
+                ),
+                Timestamp::parse("2022.06:18-03/04\\05,000006", fmt).unwrap(),
+            );
+            // All of the same punctuations
+            assert_eq!(
+                Timestamp::new(
+                    Date::try_from_ymd(2022, 6, 18).unwrap(),
+                    Time::try_from_hms(3, 4, 5, 6).unwrap(),
+                ),
+                Timestamp::parse("2022-06-18-03-04-05-000006", fmt).unwrap()
+            );
+            assert_eq!(
+                Timestamp::new(
+                    Date::try_from_ymd(2022, 6, 18).unwrap(),
+                    Time::try_from_hms(3, 4, 5, 6).unwrap(),
+                ),
+                Timestamp::parse("2022.06.18.03.04.05.000006", fmt).unwrap()
+            );
+            assert_eq!(
+                Timestamp::new(
+                    Date::try_from_ymd(2022, 6, 18).unwrap(),
+                    Time::try_from_hms(3, 4, 5, 6).unwrap(),
+                ),
+                Timestamp::parse("2022:06:18:03:04:05:000006", fmt).unwrap()
+            );
+        }
+
+        // Test different numbers or kinds of punctuations
+        assert!(
+            Timestamp::parse("2022-06-18 03:04:05.000006", "yyyy-mm-dd hh24:mi:ss..ff").is_err()
+        );
+        assert!(
+            Timestamp::parse("2022-06-18 03:04:05..000006", "yyyy-mm-dd hh24:mi:ss..ff").is_ok()
+        );
+        assert!(
+            Timestamp::parse("2022-06-18 03:04:05.:000006", "yyyy-mm-dd hh24:mi:ss..ff").is_ok()
+        );
+
+        // Ignore all Blank
+        assert!(Timestamp::parse(
+            "2022-06-18:::03:04:05.000006",
+            "yyyy-mm-dd   :::hh24:mi:ss.ff"
+        )
+        .is_ok());
+        assert!(Timestamp::parse(
+            "2022-06-18 :::03:04:05.000006",
+            "yyyy-mm-dd   :::hh24:mi:ss.ff"
+        )
+        .is_ok());
+        assert!(Timestamp::parse(
+            "2022-06-18 : : : 03:04:05.000006",
+            "yyyy-mm-dd   :::hh24:mi:ss.ff"
+        )
+        .is_ok());
     }
 }
