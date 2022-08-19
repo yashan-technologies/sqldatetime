@@ -510,7 +510,7 @@ impl Month {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Field {
     Invalid,
     /// ' '
@@ -569,7 +569,7 @@ pub enum AmPm {
     Pm,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum AmPmStyle {
     Upper,
     Lower,
@@ -607,7 +607,7 @@ impl AmPmStyle {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Copy, Clone)]
 pub enum NameStyle {
     Capital = 0,
     Lower = 1,
@@ -1478,7 +1478,7 @@ impl Formatter {
                         }
                         let (hour, negative) =
                             expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 12);
-                        if negative || hour < 1 || hour > 12 {
+                        if negative || !(1..=12).contains(&hour) {
                             return Err(Error::ParseError(
                                 "hour must be between 1 and 12".try_to_string()?,
                             ));

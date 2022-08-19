@@ -32,7 +32,7 @@ const ISO_YEAR_TABLE: [(DateSubMethod, i32); 8] = [
 ];
 
 /// Weekdays in the order of 1..=7 Sun..=Sat for formatting and calculation use
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq)]
 pub enum WeekDay {
     Sunday = 1,
     Monday = 2,
@@ -59,7 +59,7 @@ impl From<usize> for WeekDay {
 }
 
 /// Months in the order of 1..=12 January..=December for formatting use
-#[derive(Debug, Copy, Clone, PartialOrd, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialOrd, PartialEq, Eq)]
 pub enum Month {
     January = 1,
     February = 2,
@@ -277,7 +277,7 @@ impl Date {
 
     #[inline]
     pub fn add_months(self, months: i32) -> Result<Date> {
-        if months <= ADD_MONTHS_MAX_MONTH && months >= -ADD_MONTHS_MAX_MONTH {
+        if (-ADD_MONTHS_MAX_MONTH..=ADD_MONTHS_MAX_MONTH).contains(&months) {
             let (new_year, new_month, day) = self.add_months_internal(months);
             let new_day = min(day, days_of_month(new_year, new_month));
             Date::try_from_ymd(new_year, new_month, new_day)
