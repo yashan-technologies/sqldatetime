@@ -8,7 +8,7 @@ use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
 use crate::{DateTime, IntervalDT, IntervalYM, Round, Time, Timestamp, Trunc};
 use chrono::{Datelike, Local};
-use std::cmp::Ordering;
+use std::cmp::{min, Ordering};
 use std::convert::TryFrom;
 use std::fmt::Display;
 
@@ -17,6 +17,8 @@ type DateSubMethod = fn(Date, i32) -> Result<Date>;
 pub const UNIX_EPOCH_DOW: WeekDay = WeekDay::Thursday;
 
 const ROUNDS_UP_DAY: u32 = 16;
+
+const ADD_MONTHS_MAX_MONTH: i32 = 9999 * 12 - 1;
 
 const ISO_YEAR_TABLE: [(DateSubMethod, i32); 8] = [
     (sub_to_date, 0), // Unreachable
@@ -256,10 +258,10 @@ impl Date {
     }
 
     #[inline]
-    pub(crate) fn add_interval_ym_internal(self, interval: IntervalYM) -> Result<Date> {
+    pub(crate) fn add_months_internal(self, months: i32) -> (i32, u32, u32) {
         let (year, month, day) = self.extract();
 
-        let mut new_month = month as i32 + interval.months();
+        let mut new_month = month as i32 + months;
         let mut new_year = year;
 
         if new_month > MONTHS_PER_YEAR as i32 {
@@ -270,7 +272,25 @@ impl Date {
             new_month = new_month % MONTHS_PER_YEAR as i32 + MONTHS_PER_YEAR as i32;
         }
 
-        Date::try_from_ymd(new_year, new_month as u32, day)
+        (new_year, new_month as u32, day)
+    }
+
+    #[inline]
+    pub fn add_months(self, months: i32) -> Result<Date> {
+        if months <= ADD_MONTHS_MAX_MONTH && months >= -ADD_MONTHS_MAX_MONTH {
+            let (new_year, new_month, day) = self.add_months_internal(months);
+            let new_day = min(day, days_of_month(new_year, new_month));
+            Date::try_from_ymd(new_year, new_month, new_day)
+        } else {
+            Err(Error::DateOutOfRange)
+        }
+    }
+
+    #[inline]
+    pub(crate) fn add_interval_ym_internal(self, interval: IntervalYM) -> Result<Date> {
+        let (new_year, new_month, day) = self.add_months_internal(interval.months());
+
+        Date::try_from_ymd(new_year, new_month, day)
     }
 
     /// `Date` adds `IntervalYM`
@@ -1064,6 +1084,49 @@ mod tests {
         );
         assert_eq!(date.sub_days(718).unwrap(), date.add_days(-718).unwrap());
         assert_eq!(date.sub_days(-718).unwrap(), date.add_days(718).unwrap());
+    }
+
+    #[test]
+    fn test_add_months() {
+        let upper_date = Date::try_from_ymd(9999, 12, 31).unwrap();
+        let lower_date = Date::try_from_ymd(1, 1, 1).unwrap();
+
+        // Out of range
+        assert!(lower_date.add_months(i32::MAX).is_err());
+        assert!(lower_date.add_months(234253258).is_err());
+        assert!(lower_date.add_months(9999 * 12).is_err());
+        assert!(upper_date.add_months(1).is_err());
+        assert!(upper_date.add_months(i32::MIN).is_err());
+        assert!(upper_date.add_months(-(9999 * 12)).is_err());
+
+        // Normal
+        assert_eq!(upper_date.add_months(0).unwrap(), upper_date);
+        assert_eq!(
+            upper_date.add_months(-13).unwrap(),
+            Date::try_from_ymd(9998, 11, 30).unwrap()
+        );
+        assert_eq!(
+            upper_date.add_months(-(9999 * 12 - 1)).unwrap(),
+            Date::try_from_ymd(1, 1, 31).unwrap()
+        );
+        assert_eq!(
+            lower_date.add_months(13).unwrap(),
+            Date::try_from_ymd(2, 2, 1).unwrap()
+        );
+        assert_eq!(
+            lower_date.add_months(9999 * 12 - 1).unwrap(),
+            Date::try_from_ymd(9999, 12, 1).unwrap()
+        );
+
+        let date = Date::try_from_ymd(5000, 1, 31).unwrap();
+        assert_eq!(
+            date.add_months(49).unwrap(),
+            Date::try_from_ymd(5004, 2, 29).unwrap()
+        );
+        assert_eq!(
+            date.add_months(-23).unwrap(),
+            Date::try_from_ymd(4998, 2, 28).unwrap()
+        );
     }
 
     #[test]
