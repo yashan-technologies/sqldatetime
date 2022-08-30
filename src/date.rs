@@ -258,42 +258,73 @@ impl Date {
     }
 
     #[inline]
-    pub(crate) fn add_months_internal(self, months: i32) -> (i32, u32, u32) {
-        let (year, month, day) = self.extract();
+    pub(crate) fn add_months_internal<
+        const CHECK_RANGE: bool,
+        const ADJUST_DAY: bool,
+        const CONSIDER_END_OF_MONTH: bool,
+    >(
+        self,
+        months: i32,
+    ) -> Result<(i32, u32, u32)> {
+        if !CHECK_RANGE || (-ADD_MONTHS_MAX_MONTH..=ADD_MONTHS_MAX_MONTH).contains(&months) {
+            let (year, month, day) = self.extract();
 
-        let mut new_month = month as i32 + months;
-        let mut new_year = year;
+            let mut new_month = month as i32 + months;
+            let mut new_year = year;
 
-        if new_month > MONTHS_PER_YEAR as i32 {
-            new_year += (new_month - 1) / MONTHS_PER_YEAR as i32;
-            new_month = (new_month - 1) % MONTHS_PER_YEAR as i32 + 1;
-        } else if new_month < 1 {
-            new_year += new_month / MONTHS_PER_YEAR as i32 - 1;
-            new_month = new_month % MONTHS_PER_YEAR as i32 + MONTHS_PER_YEAR as i32;
-        }
+            if new_month > MONTHS_PER_YEAR as i32 {
+                new_year += (new_month - 1) / MONTHS_PER_YEAR as i32;
+                new_month = (new_month - 1) % MONTHS_PER_YEAR as i32 + 1;
+            } else if new_month < 1 {
+                new_year += new_month / MONTHS_PER_YEAR as i32 - 1;
+                new_month = new_month % MONTHS_PER_YEAR as i32 + MONTHS_PER_YEAR as i32;
+            }
 
-        (new_year, new_month as u32, day)
-    }
-
-    #[inline]
-    pub fn add_months(self, months: i32) -> Result<Date> {
-        if (-ADD_MONTHS_MAX_MONTH..=ADD_MONTHS_MAX_MONTH).contains(&months) {
-            let (new_year, new_month, day) = self.add_months_internal(months);
-            let new_day = min(day, days_of_month(new_year, new_month));
-            Date::try_from_ymd(new_year, new_month, new_day)
+            let new_day = if ADJUST_DAY {
+                if CONSIDER_END_OF_MONTH && day == days_of_month(year, month) {
+                    days_of_month(new_year, new_month as u32)
+                } else {
+                    min(day, days_of_month(new_year, new_month as u32))
+                }
+            } else {
+                day
+            };
+            Ok((new_year, new_month as u32, new_day))
         } else {
             Err(Error::DateOutOfRange)
         }
     }
 
+    /// `Date` adds months.
+    /// The date will be adjusted.
+    /// The last day of the month is not considered.
+    #[inline]
+    pub fn add_months(self, months: i32) -> Result<Date> {
+        let (new_year, new_month, new_day) =
+            self.add_months_internal::<true, true, false>(months)?;
+        Date::try_from_ymd(new_year, new_month, new_day)
+    }
+
+    /// `Date` adds months.
+    /// The date will be adjusted.
+    /// The last day of the month is considered.
+    #[inline]
+    pub fn add_months2(self, months: i32) -> Result<Date> {
+        let (new_year, new_month, new_day) =
+            self.add_months_internal::<true, true, true>(months)?;
+        Date::try_from_ymd(new_year, new_month, new_day)
+    }
+
     #[inline]
     pub(crate) fn add_interval_ym_internal(self, interval: IntervalYM) -> Result<Date> {
-        let (new_year, new_month, day) = self.add_months_internal(interval.months());
+        let (new_year, new_month, day) =
+            self.add_months_internal::<false, false, false>(interval.months())?;
 
         Date::try_from_ymd(new_year, new_month, day)
     }
 
     /// `Date` adds `IntervalYM`
+    /// The date will not be adjusted.
     #[inline]
     pub fn add_interval_ym(self, interval: IntervalYM) -> Result<Timestamp> {
         Ok(self.add_interval_ym_internal(interval)?.and_zero_time())
@@ -1118,6 +1149,7 @@ mod tests {
             Date::try_from_ymd(9999, 12, 1).unwrap()
         );
 
+        // Leap year
         let date = Date::try_from_ymd(5000, 1, 31).unwrap();
         assert_eq!(
             date.add_months(49).unwrap(),
@@ -1127,6 +1159,102 @@ mod tests {
             date.add_months(-23).unwrap(),
             Date::try_from_ymd(4998, 2, 28).unwrap()
         );
+
+        // End of the month
+        let date = Date::try_from_ymd(5000, 4, 30).unwrap();
+        assert_eq!(
+            date.add_months(1).unwrap(),
+            Date::try_from_ymd(5000, 5, 30).unwrap()
+        );
+        let date = Date::try_from_ymd(5000, 2, 28).unwrap();
+        assert_eq!(
+            date.add_months(48).unwrap(),
+            Date::try_from_ymd(5004, 2, 28).unwrap()
+        );
+        let date = Date::try_from_ymd(5000, 3, 29).unwrap();
+        assert_eq!(
+            date.add_months(-1).unwrap(),
+            Date::try_from_ymd(5000, 2, 28).unwrap()
+        );
+
+        let date = generate_date(2000, 2, 29);
+        assert_eq!(date.add_months(24).unwrap(), generate_date(2002, 2, 28));
+
+        let date = generate_date(2001, 2, 28);
+        assert_eq!(date.add_months(1).unwrap(), generate_date(2001, 3, 28));
+
+        let date = generate_date(2001, 2, 28);
+        assert_eq!(date.add_months(36).unwrap(), generate_date(2004, 2, 28));
+    }
+
+    #[test]
+    fn test_add_months2() {
+        let upper_date = Date::try_from_ymd(9999, 12, 31).unwrap();
+        let lower_date = Date::try_from_ymd(1, 1, 1).unwrap();
+
+        // Out of range
+        assert!(lower_date.add_months2(i32::MAX).is_err());
+        assert!(lower_date.add_months2(234253258).is_err());
+        assert!(lower_date.add_months2(9999 * 12).is_err());
+        assert!(upper_date.add_months2(1).is_err());
+        assert!(upper_date.add_months2(i32::MIN).is_err());
+        assert!(upper_date.add_months2(-(9999 * 12)).is_err());
+
+        // Normal
+        assert_eq!(upper_date.add_months2(0).unwrap(), upper_date);
+        assert_eq!(
+            upper_date.add_months2(-13).unwrap(),
+            Date::try_from_ymd(9998, 11, 30).unwrap()
+        );
+        assert_eq!(
+            upper_date.add_months2(-(9999 * 12 - 1)).unwrap(),
+            Date::try_from_ymd(1, 1, 31).unwrap()
+        );
+        assert_eq!(
+            lower_date.add_months2(13).unwrap(),
+            Date::try_from_ymd(2, 2, 1).unwrap()
+        );
+        assert_eq!(
+            lower_date.add_months2(9999 * 12 - 1).unwrap(),
+            Date::try_from_ymd(9999, 12, 1).unwrap()
+        );
+
+        // Leap year
+        let date = Date::try_from_ymd(5000, 1, 31).unwrap();
+        assert_eq!(
+            date.add_months2(49).unwrap(),
+            Date::try_from_ymd(5004, 2, 29).unwrap()
+        );
+        assert_eq!(
+            date.add_months2(-23).unwrap(),
+            Date::try_from_ymd(4998, 2, 28).unwrap()
+        );
+
+        // End of the month
+        let date = Date::try_from_ymd(5000, 4, 30).unwrap();
+        assert_eq!(
+            date.add_months2(1).unwrap(),
+            Date::try_from_ymd(5000, 5, 31).unwrap()
+        );
+        let date = Date::try_from_ymd(5000, 2, 28).unwrap();
+        assert_eq!(
+            date.add_months2(48).unwrap(),
+            Date::try_from_ymd(5004, 2, 29).unwrap()
+        );
+        let date = Date::try_from_ymd(5000, 3, 29).unwrap();
+        assert_eq!(
+            date.add_months2(-1).unwrap(),
+            Date::try_from_ymd(5000, 2, 28).unwrap()
+        );
+
+        let date = generate_date(2000, 2, 29);
+        assert_eq!(date.add_months2(24).unwrap(), generate_date(2002, 2, 28));
+
+        let date = generate_date(2001, 2, 28);
+        assert_eq!(date.add_months2(1).unwrap(), generate_date(2001, 3, 31));
+
+        let date = generate_date(2001, 2, 28);
+        assert_eq!(date.add_months2(36).unwrap(), generate_date(2004, 2, 29));
     }
 
     #[test]

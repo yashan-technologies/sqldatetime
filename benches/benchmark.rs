@@ -248,6 +248,13 @@ fn date_add_months(bench: &mut Bencher) {
     })
 }
 
+fn date_add_months2(bench: &mut Bencher) {
+    let dt = Date::from_str("5000-6-6");
+    bench.iter(|| {
+        let _ = black_box(black_box(dt).add_months2(black_box(683)).unwrap());
+    })
+}
+
 fn date_sub_interval_ym(bench: &mut Bencher) {
     let dt = Date::from_str("5000-6-6");
     let ym = IntervalYM::from_str("123-11");
@@ -1086,6 +1093,7 @@ benchmark_group!(
     date_format,
     date_sub_days_100_times,
     date_add_months,
+    date_add_months2,
     date_sub_interval_ym,
     date_sub_interval_dt_100_times,
     date_sub_date_100_times,
