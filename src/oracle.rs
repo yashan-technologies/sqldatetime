@@ -1,4 +1,6 @@
-use crate::common::{is_valid_timestamp, USECONDS_PER_DAY, USECONDS_PER_SECOND};
+use crate::common::{
+    days_of_month, is_valid_timestamp, MONTHS_PER_YEAR, USECONDS_PER_DAY, USECONDS_PER_SECOND,
+};
 use crate::error::{Error, Result};
 use crate::format::{DateTimeFormat, LazyFormat, NaiveDateTime};
 use crate::{
@@ -176,6 +178,29 @@ impl Date {
     #[inline]
     pub fn last_day_of_month(self) -> Date {
         self.0.last_day_of_month().into()
+    }
+
+    /// Gets months and microseconds of datetime between two `Date`.
+    #[inline]
+    pub fn months_between(self, date: Date) -> (i32, i64) {
+        let (date1, time1) = self.extract();
+        let (date2, time2) = date.extract();
+        let (year1, month1, day1) = date1.extract();
+        let (year2, month2, day2) = date2.extract();
+        let mon = (year1 - year2) * MONTHS_PER_YEAR as i32 + month1 as i32 - month2 as i32;
+        let (mon, day) =
+            if day1 == days_of_month(year1, month1) && day2 == days_of_month(year2, month2) {
+                (mon, 0)
+            } else if day1 < day2 {
+                (mon - 1, day1 + 31 - day2)
+            } else {
+                (mon, day1 - day2)
+            };
+        let usecs = match day {
+            0 => 0,
+            _ => day as i64 * USECONDS_PER_DAY + (time1.usecs() - time2.usecs()),
+        };
+        (mon, usecs)
     }
 }
 
@@ -499,6 +524,7 @@ impl PartialOrd<SqlDate> for Date {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::common::USECONDS_PER_HOUR;
     use chrono::{Datelike, Local};
 
     fn generate_date(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Date {
@@ -1627,6 +1653,46 @@ mod tests {
         assert_eq!(
             generate_date(9999, 12, 31, 23, 59, 59).last_day_of_month(),
             generate_date(9999, 12, 31, 23, 59, 59)
+        );
+    }
+
+    #[test]
+    fn test_months_between() {
+        assert_eq!(
+            generate_date(1, 2, 1, 0, 0, 0).months_between(generate_date(1, 1, 1, 0, 0, 0)),
+            (1, 0)
+        );
+        assert_eq!(
+            generate_date(1, 2, 1, 23, 0, 0).months_between(generate_date(1, 1, 1, 0, 0, 0)),
+            (1, 0)
+        );
+        assert_eq!(
+            generate_date(1, 2, 1, 0, 0, 0).months_between(generate_date(1, 1, 1, 0, 0, 0)),
+            (1, 0)
+        );
+        assert_eq!(
+            generate_date(1, 3, 1, 0, 0, 0).months_between(generate_date(1, 2, 28, 0, 0, 0)),
+            (0, 4 * USECONDS_PER_DAY)
+        );
+        assert_eq!(
+            generate_date(1, 3, 31, 0, 0, 0).months_between(generate_date(1, 2, 28, 0, 0, 0)),
+            (1, 0)
+        );
+        assert_eq!(
+            generate_date(1, 3, 31, 23, 0, 0).months_between(generate_date(1, 2, 28, 0, 0, 0)),
+            (1, 0)
+        );
+        assert_eq!(
+            generate_date(1, 2, 2, 0, 0, 0).months_between(generate_date(1, 2, 1, 23, 0, 0)),
+            (0, USECONDS_PER_HOUR)
+        );
+        assert_eq!(
+            generate_date(1, 3, 2, 0, 0, 0).months_between(generate_date(1, 2, 1, 23, 0, 0)),
+            (1, USECONDS_PER_HOUR)
+        );
+        assert_eq!(
+            generate_date(1, 3, 1, 23, 0, 0).months_between(generate_date(1, 2, 2, 0, 0, 0)),
+            (0, 30 * USECONDS_PER_DAY + 23 * USECONDS_PER_HOUR)
         );
     }
 }

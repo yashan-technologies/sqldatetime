@@ -1027,6 +1027,17 @@ mod oracle_bench {
             let _ = black_box(black_box(od).last_day_of_month());
         })
     }
+
+    pub fn oracle_date_months_between_100_times(bench: &mut Bencher) {
+        let od1: OracleDate = OracleDate::from_str("5555-6-6 12:45:22");
+        let od2: OracleDate = OracleDate::from_str("2021-12-28 9:57:22");
+        bench.iter(|| {
+            for _ in 0..100 {
+                let x = od1.months_between(od2);
+                black_box(x);
+            }
+        })
+    }
 }
 
 #[cfg(feature = "oracle")]
@@ -1065,6 +1076,7 @@ benchmark_group!(
     oracle_date_round_hour_100_times,
     oracle_date_round_minute_100_times,
     oracle_date_last_day_of_month,
+    oracle_date_months_between_100_times
 );
 
 benchmark_group!(
