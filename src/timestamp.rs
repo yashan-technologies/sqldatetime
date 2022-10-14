@@ -945,7 +945,11 @@ mod tests {
 
                 let timestamp =
                     Timestamp::parse("2021-12-15", "YYYY-MM-DD HH:MI:SS.ff AM").unwrap();
-                assert_eq!(timestamp, generate_ts(2021, 12, 15, 12, 0, 0, 0));
+                assert_eq!(timestamp, generate_ts(2021, 12, 15, 0, 0, 0, 0));
+
+                assert!(Timestamp::parse("2021-12-15 0", "YYYY-MM-DD HH").is_err());
+                assert!(Timestamp::parse("2021-12-15 0", "YYYY-MM-DD HH12").is_err());
+                assert!(Timestamp::parse("2021-12-15 0", "YYYY-MM-DD HH:MI:SS.ff AM").is_err());
 
                 let timestamp =
                     Timestamp::parse("2021-12-15 11", "YYYY-MM-DD HH:MI:SS.ff AM").unwrap();

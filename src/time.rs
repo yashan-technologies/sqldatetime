@@ -499,7 +499,7 @@ mod tests {
             let time2 = Time::parse("11:23", "HH24:MI:SS").unwrap();
             assert_eq!(time2, time);
 
-            let time = Time::try_from_hms(12, 0, 0, 0).unwrap();
+            let time = Time::try_from_hms(0, 0, 0, 0).unwrap();
             let time2 = Time::parse("", "HH:MI:SS").unwrap();
             assert_eq!(time2, time);
 

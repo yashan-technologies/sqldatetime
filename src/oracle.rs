@@ -759,7 +759,7 @@ mod tests {
                 let date = Date::parse("2021-12-15 11:23", "yyyy-mm-dd hh24:mi:ss").unwrap();
                 assert_eq!(dt, date);
 
-                let dt = generate_date(2021, 12, 15, 12, 0, 0);
+                let dt = generate_date(2021, 12, 15, 0, 0, 0);
                 let date = Date::parse("2021-12-15", "yyyy-mm-dd hh:mi:ss").unwrap();
                 assert_eq!(dt, date);
 

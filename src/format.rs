@@ -1471,13 +1471,19 @@ impl Formatter {
                                 "format code (hour) appears twice".try_to_string()?,
                             ));
                         }
-                        let (hour, negative) =
-                            expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 12);
-                        if negative || !(1..=12).contains(&hour) {
-                            return Err(Error::ParseError(
-                                "hour must be between 1 and 12".try_to_string()?,
-                            ));
-                        }
+
+                        let hour = if s.is_empty() {
+                            0
+                        } else {
+                            let (hour, _) = expect_number!(T::HOUR_MAX_LENGTH);
+                            if !(1..=12).contains(&hour) {
+                                return Err(Error::ParseError(
+                                    "hour must be between 1 and 12".try_to_string()?,
+                                ));
+                            }
+                            hour
+                        };
+
                         dt.hour = hour as u32;
                         dt.adjust_hour12();
                         is_hour24_set = Some(false);
