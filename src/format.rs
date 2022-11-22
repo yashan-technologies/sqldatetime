@@ -529,6 +529,8 @@ pub enum Field {
     Dot,
     /// ';'
     Semicolon,
+    /// '_'
+    Underline,
     /// 'T'
     T,
     /// 'YYYY'
@@ -938,6 +940,7 @@ impl<'a> FormatParser<'a> {
                     b',' => Field::Comma,
                     b'.' => Field::Dot,
                     b';' => Field::Semicolon,
+                    b'_' => Field::Underline,
                     b'A' | b'a' => {
                         self.back(1);
                         self.parse_am()
@@ -1086,6 +1089,7 @@ impl Formatter {
                 Field::Comma => w.write_char(',')?,
                 Field::Dot => w.write_char('.')?,
                 Field::Semicolon => w.write_char(';')?,
+                Field::Underline => w.write_char('_')?,
                 Field::T => w.write_char('T')?,
                 Field::Year(n) => {
                     let year = if T::HAS_DATE {
@@ -1265,7 +1269,7 @@ impl Formatter {
         &self,
         input: S,
     ) -> Result<T> {
-        const COMPATIBLE_SEPARATOR: [u8; 7] = [b'.', b':', b'-', b'/', b'\\', b',', b';'];
+        const COMPATIBLE_SEPARATOR: [u8; 8] = [b'.', b':', b'-', b'/', b'\\', b',', b';', b'_'];
 
         let mut s = input.as_ref().as_bytes();
         let mut dt = NaiveDateTime::new();
@@ -1337,7 +1341,8 @@ impl Formatter {
                 | Field::Backslash
                 | Field::Comma
                 | Field::Dot
-                | Field::Semicolon => match s.first() {
+                | Field::Semicolon
+                | Field::Underline => match s.first() {
                     Some(ch) if COMPATIBLE_SEPARATOR.contains(ch) => {
                         s = &s[1..];
                     }
@@ -2165,6 +2170,7 @@ mod tests {
             "yyyy\\mm\\dd\\hh24\\mi\\ss\\ff",
             "yyyy,mm,dd,hh24,mi,ss,ff",
             "yyyy;mm;dd;hh24;mi;ss;ff",
+            "yyyy_mm_dd_hh24_mi_ss_ff",
         ];
 
         for fmt in fmts {
@@ -2198,6 +2204,13 @@ mod tests {
                 ),
                 Timestamp::parse("2022:06:18:03:04:05:000006", fmt).unwrap()
             );
+            assert_eq!(
+                Timestamp::new(
+                    Date::try_from_ymd(2022, 6, 18).unwrap(),
+                    Time::try_from_hms(3, 4, 5, 6).unwrap(),
+                ),
+                Timestamp::parse("2022_06_18_03_04_05_000006", fmt).unwrap()
+            );
         }
 
         // Test different numbers or kinds of punctuations
@@ -2209,6 +2222,9 @@ mod tests {
         );
         assert!(
             Timestamp::parse("2022-06-18 03:04:05.:000006", "yyyy-mm-dd hh24:mi:ss..ff").is_ok()
+        );
+        assert!(
+            Timestamp::parse("2022-06-18 03:04:05.:000006", "yyyy-mm-dd hh24:mi:ss__ff").is_ok()
         );
 
         // Ignore all Blank
