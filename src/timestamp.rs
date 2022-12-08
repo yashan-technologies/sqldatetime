@@ -3,8 +3,8 @@
 use crate::common::*;
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
+use crate::local::Local;
 use crate::{Date, DateTime, IntervalDT, IntervalYM, Round, Time, Trunc};
-use chrono::{Datelike, Local, Timelike};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -197,15 +197,10 @@ impl Timestamp {
     /// Get local system timestamp
     #[inline]
     pub fn now() -> Result<Timestamp> {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         Ok(Timestamp::new(
             Date::try_from_ymd(now.year(), now.month(), now.day())?,
-            Time::try_from_hms(
-                now.hour(),
-                now.minute(),
-                now.second(),
-                now.timestamp_subsec_micros(),
-            )?,
+            Time::try_from_hms(now.hour(), now.minute(), now.second(), now.usec())?,
         ))
     }
 
@@ -469,7 +464,7 @@ impl TryFrom<Time> for Timestamp {
 
     #[inline]
     fn try_from(time: Time) -> Result<Self> {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         Ok(Timestamp::new(
             Date::try_from_ymd(now.year(), now.month(), now.day())?,
             time,
@@ -518,7 +513,6 @@ impl DateTime for Timestamp {
 mod tests {
     use super::*;
     use crate::common::DATE_MAX_YEAR;
-    use chrono::{Datelike, Local};
 
     fn generate_ts(
         year: i32,
@@ -836,7 +830,7 @@ mod tests {
 
             // Default
             {
-                let now = Local::now().naive_local();
+                let now = Local::now();
                 let year = now.year();
                 let month = now.month();
 
@@ -1095,7 +1089,7 @@ mod tests {
 
             // fraction rounding and etc
             {
-                let now = Local::now().naive_local();
+                let now = Local::now();
                 let year = now.year();
                 let month = now.month();
 
@@ -1716,7 +1710,7 @@ mod tests {
 
     #[test]
     fn test_now() {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         let dt = Timestamp::now().unwrap();
         assert_eq!(now.year() as i32, dt.year().unwrap());
         assert_eq!(now.month() as i32, dt.month().unwrap());

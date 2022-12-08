@@ -3,10 +3,10 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{DateTimeFormat, LazyFormat, NaiveDateTime};
+use crate::local::Local;
 use crate::{
     Date as SqlDate, DateTime, Formatter, IntervalDT, IntervalYM, Round, Time, Timestamp, Trunc,
 };
-use chrono::{Datelike, Local, Timelike};
 use std::cmp::Ordering;
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -167,7 +167,7 @@ impl Date {
     /// Get local system date
     #[inline]
     pub fn now() -> Result<Date> {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         Ok(Date::new(
             SqlDate::try_from_ymd(now.year(), now.month(), now.day())?,
             Time::try_from_hms(now.hour(), now.minute(), now.second(), 0)?,
@@ -412,7 +412,7 @@ impl TryFrom<Time> for Date {
 
     #[inline]
     fn try_from(time: Time) -> Result<Self> {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         Ok(Date::new(
             SqlDate::try_from_ymd(now.year(), now.month(), now.day())?,
             time,
@@ -525,7 +525,6 @@ impl PartialOrd<SqlDate> for Date {
 mod tests {
     use super::*;
     use crate::common::USECONDS_PER_HOUR;
-    use chrono::{Datelike, Local};
 
     fn generate_date(year: i32, month: u32, day: u32, hour: u32, min: u32, sec: u32) -> Date {
         Date::new(
@@ -563,7 +562,7 @@ mod tests {
             let time = Time::try_from_hms(1, 23, 4, 5).unwrap();
             let timestamp = Timestamp::try_from(time).unwrap();
             let date = Date::try_from(time).unwrap();
-            let now = Local::now().naive_local();
+            let now = Local::now();
             assert_eq!(
                 timestamp,
                 generate_ts(now.year(), now.month(), now.day(), 1, 23, 4, 5)
@@ -720,7 +719,7 @@ mod tests {
 
             // Default
             {
-                let now = Local::now().naive_local();
+                let now = Local::now();
                 let year = now.year();
                 let month = now.month();
 
@@ -1494,7 +1493,7 @@ mod tests {
 
     #[test]
     fn test_now() {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         let dt = Date::now().unwrap();
         assert_eq!(now.year() as i32, dt.year().unwrap());
         assert_eq!(now.month() as i32, dt.month().unwrap());

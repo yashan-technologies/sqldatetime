@@ -6,8 +6,8 @@ use crate::common::{
 };
 use crate::error::{Error, Result};
 use crate::format::{Formatter, LazyFormat, NaiveDateTime};
+use crate::local::Local;
 use crate::{DateTime, IntervalDT, IntervalYM, Round, Time, Timestamp, Trunc};
-use chrono::{Datelike, Local};
 use std::cmp::{min, Ordering};
 use std::convert::TryFrom;
 use std::fmt::Display;
@@ -398,7 +398,7 @@ impl Date {
     /// Get local system date
     #[inline]
     pub fn now() -> Result<Date> {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         Date::try_from_ymd(now.year(), now.month(), now.day())
     }
 
@@ -845,7 +845,6 @@ impl DateTime for Date {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::{Datelike, Local};
 
     #[test]
     fn test_date() {
@@ -895,7 +894,7 @@ mod tests {
 
         // Default
         {
-            let now = Local::now().naive_local();
+            let now = Local::now();
             let dt = Date::try_from_ymd(now.year(), now.month(), 1).unwrap();
             let date = Date::parse(" ", " ").unwrap();
             assert_eq!(date, dt);
@@ -1565,7 +1564,7 @@ mod tests {
 
     #[test]
     fn test_now() {
-        let now = Local::now().naive_local();
+        let now = Local::now();
         let dt = Date::now().unwrap();
         assert_eq!(now.year() as i32, dt.year().unwrap());
         assert_eq!(now.month() as i32, dt.month().unwrap());

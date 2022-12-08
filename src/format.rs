@@ -4,9 +4,9 @@ use crate::common::{is_leap_year, the_day_of_year, the_month_day_of_days, DATE_M
 use crate::date::{Month, WeekDay};
 use crate::error::Result;
 use crate::format::NameStyle::{AbbrCapital, Capital};
+use crate::local::Local;
 use crate::util::StrExt;
 use crate::{Date, DateTime, Error, IntervalDT, IntervalYM, Time, Timestamp};
-use chrono::{Datelike, Local};
 use stack_buf::StackVec;
 use std::convert::TryFrom;
 use std::fmt;
@@ -1319,10 +1319,10 @@ impl Formatter {
 
         let mut dow: Option<WeekDay> = None;
         let mut doy: Option<u32> = None;
-        let mut now: Option<chrono::NaiveDateTime> = None;
+        let mut now: Option<Local> = None;
         let mut get_now = || {
             if now.is_none() {
-                now = Some(Local::now().naive_local());
+                now = Some(Local::now());
             }
             now.unwrap()
         };
@@ -1840,7 +1840,7 @@ fn eat_whitespaces(s: &[u8]) -> &[u8] {
 }
 
 #[inline]
-fn parse_year<'a, T: FnMut() -> chrono::NaiveDateTime>(
+fn parse_year<'a, T: FnMut() -> Local>(
     input: &'a [u8],
     max_len: usize,
     get_now: &mut T,

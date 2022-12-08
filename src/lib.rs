@@ -18,6 +18,7 @@ mod interval;
 mod time;
 mod timestamp;
 
+mod local;
 #[cfg(feature = "oracle")]
 mod oracle;
 #[cfg(feature = "serde")]
