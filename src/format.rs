@@ -1368,7 +1368,7 @@ impl Formatter {
                             *n as usize
                         };
                         let (negative, year, rem) = parse_year(s, len, &mut get_now)?;
-                        if negative && T::HAS_DATE {
+                        if T::HAS_DATE && (negative || year == 0) {
                             return Err(Error::ParseError(
                                 "(full) year must be between 1 and 9999".try_to_string()?,
                             ));
@@ -2243,5 +2243,44 @@ mod tests {
             "yyyy-mm-dd   :::hh24:mi:ss.ff"
         )
         .is_ok());
+    }
+
+    #[test]
+    fn test_date_year_parse() {
+        let fmt = Formatter::try_new("YYYY").unwrap();
+        assert!(match fmt.parse::<_, Date>("0") {
+            Ok(_) => false,
+            Err(Error::ParseError(s)) => {
+                s == "(full) year must be between 1 and 9999"
+            }
+            Err(_) => false,
+        });
+
+        let fmt = Formatter::try_new("Y").unwrap();
+        assert!(fmt.parse::<_, Date>("0").is_ok());
+
+        let fmt = Formatter::try_new("YYY").unwrap();
+        assert!(fmt.parse::<_, Date>("000").is_ok());
+
+        let fmt = Formatter::try_new("YY").unwrap();
+        assert!(fmt.parse::<_, Date>("00").is_ok());
+
+        let fmt = Formatter::try_new("YY").unwrap();
+        assert!(match fmt.parse::<_, Date>("0000") {
+            Ok(_) => false,
+            Err(Error::ParseError(s)) => {
+                s == "(full) year must be between 1 and 9999"
+            }
+            Err(_) => false,
+        });
+
+        let fmt = Formatter::try_new("YYYY-MM-DD HH24:MI:SS.FF6").unwrap();
+        assert!(match fmt.parse::<_, Timestamp>("0") {
+            Ok(_) => false,
+            Err(Error::ParseError(s)) => {
+                s == "(full) year must be between 1 and 9999"
+            }
+            Err(_) => false,
+        });
     }
 }
