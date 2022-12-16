@@ -72,7 +72,7 @@ pub const fn julian2date(julian_day: i32) -> (i32, u32, u32) {
     quad = julian * 2141 / 65_536;
 
     let day = julian - 7834 * quad / 256;
-    let month = (quad + 10) % MONTHS_PER_YEAR as u32 + 1;
+    let month = (quad + 10) % MONTHS_PER_YEAR + 1;
 
     (year, month, day)
 }

@@ -1495,7 +1495,7 @@ mod tests {
     fn test_now() {
         let now = Local::now();
         let dt = Date::now().unwrap();
-        assert_eq!(now.year() as i32, dt.year().unwrap());
+        assert_eq!(now.year(), dt.year().unwrap());
         assert_eq!(now.month() as i32, dt.month().unwrap());
         assert_eq!(now.day() as i32, dt.day().unwrap());
         assert_eq!(now.hour() as i32, dt.hour().unwrap());

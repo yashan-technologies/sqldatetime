@@ -413,7 +413,7 @@ impl NaiveDateTime {
                 }
             };
 
-            self.hour = hour24 as u32;
+            self.hour = hour24;
         }
     }
 

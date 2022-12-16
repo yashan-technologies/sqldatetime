@@ -66,9 +66,9 @@ impl Timestamp {
     pub(crate) fn time(self) -> Time {
         let temp_time = self.0 % USECONDS_PER_DAY;
         if temp_time.is_negative() {
-            unsafe { Time::from_usecs_unchecked(temp_time as i64 + USECONDS_PER_DAY) }
+            unsafe { Time::from_usecs_unchecked(temp_time + USECONDS_PER_DAY) }
         } else {
-            unsafe { Time::from_usecs_unchecked(temp_time as i64) }
+            unsafe { Time::from_usecs_unchecked(temp_time) }
         }
     }
 
@@ -373,7 +373,7 @@ impl Round for Timestamp {
                 hour += 1
             }
         }
-        Ok(date.and_time(unsafe { Time::from_hms_unchecked(hour as u32, 0, 0, 0) }))
+        Ok(date.and_time(unsafe { Time::from_hms_unchecked(hour, 0, 0, 0) }))
     }
 
     #[inline]
@@ -1712,7 +1712,7 @@ mod tests {
     fn test_now() {
         let now = Local::now();
         let dt = Timestamp::now().unwrap();
-        assert_eq!(now.year() as i32, dt.year().unwrap());
+        assert_eq!(now.year(), dt.year().unwrap());
         assert_eq!(now.month() as i32, dt.month().unwrap());
         assert_eq!(now.day() as i32, dt.day().unwrap());
         assert_eq!(now.hour() as i32, dt.hour().unwrap());
