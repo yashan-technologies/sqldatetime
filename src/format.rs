@@ -531,7 +531,7 @@ pub enum Field {
     Semicolon,
     /// '_'
     Underline,
-    /// 'T'
+    /// 'T', ISO 8601 format
     T,
     /// 'YYYY'
     Year(u8),
@@ -1074,7 +1074,10 @@ impl Formatter {
             w.write_char('+')?;
         }
 
-        for field in self.fields.iter() {
+        let mut is_iso_format = false;
+
+        let mut iter = self.fields.iter();
+        while let Some(field) = iter.next() {
             match field {
                 Field::Invalid => unreachable!(),
                 Field::Blank(n) => {
@@ -1087,10 +1090,30 @@ impl Formatter {
                 Field::Slash => w.write_char('/')?,
                 Field::Backslash => w.write_char('\\')?,
                 Field::Comma => w.write_char(',')?,
-                Field::Dot => w.write_char('.')?,
+                Field::Dot => {
+                    if is_iso_format {
+                        // when the next field is fraction, write the dot along with the fraction
+                        let s = iter.as_slice();
+                        if !matches!(s.first(), Some(&Field::Fraction(_))) {
+                            w.write_char('.')?
+                        }
+                    } else {
+                        w.write_char('.')?
+                    }
+                }
                 Field::Semicolon => w.write_char(';')?,
                 Field::Underline => w.write_char('_')?,
-                Field::T => w.write_char('T')?,
+                Field::T => {
+                    if !T::HAS_TIME {
+                        return Err(Error::FormatError(
+                            "date format not recognized".try_to_string()?,
+                        ));
+                    }
+                    is_iso_format = true;
+                    if T::HAS_DATE {
+                        w.write_char('T')?
+                    }
+                }
                 Field::Year(n) => {
                     let year = if T::HAS_DATE {
                         dt.year() % (YEAR_MODIFIER[*n as usize - 1] as i32)
@@ -1165,9 +1188,18 @@ impl Formatter {
                 }
                 Field::Fraction(p) => {
                     if T::HAS_FRACTION {
-                        let p = p.unwrap_or(6);
-                        write_u32(&mut w, dt.fraction(p), p as usize)?;
-                    } else {
+                        if is_iso_format {
+                            if dt.usec() != 0 {
+                                w.write_char('.')?;
+                                let p = p.unwrap_or(6);
+                                write_u32(&mut w, dt.fraction(p), p as usize)?;
+                            }
+                        } else {
+                            let p = p.unwrap_or(6);
+                            write_u32(&mut w, dt.fraction(p), p as usize)?;
+                        }
+                    } else if !is_iso_format {
+                        // ignore fraction in ISO format when the datetime type has no fraction
                         return Err(Error::FormatError(
                             "date format not recognized".try_to_string()?,
                         ));
@@ -1273,19 +1305,7 @@ impl Formatter {
 
         let mut s = input.as_ref().as_bytes();
         let mut dt = NaiveDateTime::new();
-
-        macro_rules! expect_char {
-            ($ch: expr) => {{
-                if expect_char(s, $ch) {
-                    s = &s[1..];
-                } else {
-                    return Err(Error::ParseError(try_format!(
-                        "the input {} is inconsistent with the format",
-                        input.as_ref()
-                    )?));
-                }
-            }};
-        }
+        let mut need_time_fields = false;
 
         macro_rules! expect_number {
             ($max_len: expr) => {{
@@ -1295,10 +1315,14 @@ impl Formatter {
             }};
         }
 
-        macro_rules! expect_number_with_tolerance {
+        macro_rules! expect_time_field_with_tolerance {
             ($max_len: expr, $default: expr) => {{
                 if s.is_empty() {
-                    ($default, $default < 0)
+                    if need_time_fields {
+                        return Err(Error::ParseError("time field is missing".try_to_string()?));
+                    } else {
+                        ($default, $default < 0)
+                    }
                 } else {
                     let (neg, n, rem) = parse_number(s, $max_len)?;
                     s = rem;
@@ -1316,6 +1340,7 @@ impl Formatter {
         let mut is_min_set = false;
         let mut is_sec_set = false;
         let mut is_fraction_set = false;
+        let mut is_iso_format = false;
 
         let mut dow: Option<WeekDay> = None;
         let mut doy: Option<u32> = None;
@@ -1347,14 +1372,44 @@ impl Formatter {
                         s = &s[1..];
                     }
                     None => continue,
-                    _ => {
+                    Some(ch) => {
+                        if need_time_fields && *ch == b'Z' {
+                            // ignore trailing 'Z' in ISO 8601 format
+                            let rem = eat_whitespaces(&s[1..]);
+                            if rem.is_empty() {
+                                continue;
+                            }
+                        }
                         return Err(Error::ParseError(try_format!(
                             "the input {} is inconsistent with the format",
                             input.as_ref()
                         )?));
                     }
                 },
-                Field::T => expect_char!(b'T'),
+                Field::T => {
+                    if !T::HAS_TIME {
+                        return Err(Error::ParseError(
+                            "date format not recognized".try_to_string()?,
+                        ));
+                    }
+
+                    is_iso_format = true;
+
+                    if expect_char(s, b'T') {
+                        s = &s[1..];
+                        need_time_fields = true;
+                    } else if !s.is_empty() {
+                        if !T::HAS_DATE && T::HAS_TIME {
+                            // missing 'T' is allowed
+                            need_time_fields = true;
+                        } else {
+                            return Err(Error::ParseError(try_format!(
+                                "the input {} is inconsistent with the format",
+                                input.as_ref()
+                            )?));
+                        }
+                    }
+                }
                 Field::Year(n) => {
                     if T::HAS_DATE || T::IS_INTERVAL_YM {
                         if is_year_set {
@@ -1454,7 +1509,7 @@ impl Formatter {
                         let (hour, negative) = if T::IS_INTERVAL_DT {
                             expect_number!(T::HOUR_MAX_LENGTH)
                         } else {
-                            expect_number_with_tolerance!(T::HOUR_MAX_LENGTH, 0)
+                            expect_time_field_with_tolerance!(T::HOUR_MAX_LENGTH, 0)
                         };
                         if negative {
                             return Err(Error::ParseError(
@@ -1508,7 +1563,7 @@ impl Formatter {
                         let (minute, negative) = if T::IS_INTERVAL_DT {
                             expect_number!(T::MINUTE_MAX_LENGTH)
                         } else {
-                            expect_number_with_tolerance!(T::MINUTE_MAX_LENGTH, 0)
+                            expect_time_field_with_tolerance!(T::MINUTE_MAX_LENGTH, 0)
                         };
                         if negative {
                             return Err(Error::ParseError(
@@ -1533,7 +1588,7 @@ impl Formatter {
                         let (sec, negative) = if T::IS_INTERVAL_DT {
                             expect_number!(T::SECOND_MAX_LENGTH)
                         } else {
-                            expect_number_with_tolerance!(T::SECOND_MAX_LENGTH, 0)
+                            expect_time_field_with_tolerance!(T::SECOND_MAX_LENGTH, 0)
                         };
                         if negative {
                             return Err(Error::ParseError(
@@ -1549,7 +1604,7 @@ impl Formatter {
                     }
                 }
                 Field::Fraction(p) => {
-                    if T::HAS_FRACTION {
+                    if T::HAS_FRACTION || is_iso_format {
                         if is_fraction_set {
                             return Err(Error::ParseError(
                                 "format code (fraction) appears twice".try_to_string()?,
@@ -1681,6 +1736,11 @@ impl Formatter {
 
         if !FX {
             s = eat_whitespaces(s);
+        }
+
+        if need_time_fields && s.first() == Some(&b'Z') {
+            // ignore trailing 'Z' in ISO 8601 format
+            s = eat_whitespaces(&s[1..]);
         }
 
         if !s.is_empty() {

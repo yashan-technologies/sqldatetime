@@ -803,4 +803,32 @@ mod tests {
             })
         );
     }
+
+    #[test]
+    fn test_iso_format() {
+        const FMT: &str = "THH24:MI:SS.FF";
+        fn assert_iso_fmt(input: &str, output: &str) {
+            let time = Time::parse(input, FMT).unwrap();
+            assert_eq!(format!("{}", time.format(FMT).unwrap()), output);
+        }
+
+        fn assert_invalid_iso_str(input: &str) {
+            assert!(Timestamp::parse(input, FMT).is_err());
+        }
+
+        assert_iso_fmt("00:00:00", "00:00:00");
+        assert_iso_fmt("12:03:05 ", "12:03:05");
+        assert_iso_fmt("12:03:05.123", "12:03:05.123000");
+        assert_iso_fmt("00:00:00.123000", "00:00:00.123000");
+        assert_iso_fmt("00:00:00.123456789", "00:00:00.123457");
+        assert_iso_fmt("T00:00:00Z", "00:00:00");
+        assert_iso_fmt("T00:00:00.123Z", "00:00:00.123000");
+
+        assert_invalid_iso_str("TZ");
+        assert_invalid_iso_str("T00Z");
+        assert_invalid_iso_str("T00:00Z");
+        assert_invalid_iso_str("00");
+        assert_invalid_iso_str("00:00");
+        assert_invalid_iso_str("00:00.123");
+    }
 }

@@ -2119,4 +2119,41 @@ mod tests {
             generate_ts(9999, 12, 31, 23, 59, 59, 999999)
         );
     }
+
+    #[test]
+    fn test_iso_format() {
+        const FMT: &str = "YYYY-MM-DDTHH24:MI:SS.FF";
+        fn assert_iso_fmt(input: &str, output: &str) {
+            let ts = Timestamp::parse(input, FMT).unwrap();
+            assert_eq!(format!("{}", ts.format(FMT).unwrap()), output);
+        }
+
+        fn assert_invalid_iso_str(input: &str) {
+            assert!(Timestamp::parse(input, FMT).is_err());
+        }
+
+        assert_iso_fmt("2023-05-26", "2023-05-26T00:00:00");
+        assert_iso_fmt("2023-05-26 ", "2023-05-26T00:00:00");
+        assert_iso_fmt("2023-05-26T00:00:00", "2023-05-26T00:00:00");
+        assert_iso_fmt("2023-05-26T00:00:00.000", "2023-05-26T00:00:00");
+        assert_iso_fmt("2023-05-26T00:00:00.123000", "2023-05-26T00:00:00.123000");
+        assert_iso_fmt("2023-05-26T00:00:00.123456", "2023-05-26T00:00:00.123456");
+        assert_iso_fmt(
+            "2023-05-26T00:00:00.123456789",
+            "2023-05-26T00:00:00.123457",
+        );
+        assert_iso_fmt("2023-05-26T00:00:00Z", "2023-05-26T00:00:00");
+        assert_iso_fmt("2023-05-26T00:00:00.123Z", "2023-05-26T00:00:00.123000");
+
+        assert_invalid_iso_str("2023-05");
+        assert_invalid_iso_str("2023-05-26T00");
+        assert_invalid_iso_str("2023-05-26T00:00");
+        assert_invalid_iso_str("2023-05-26T00:00:");
+        assert_invalid_iso_str("2023-05-26T00:00.123");
+        assert_invalid_iso_str("2023-05Z");
+        assert_invalid_iso_str("2023-05-26T00Z");
+        assert_invalid_iso_str("2023-05-26T00:00Z");
+        assert_invalid_iso_str("2023-05-26T00:00:Z");
+        assert_invalid_iso_str("2023-05-26T00:00.123Z");
+    }
 }
