@@ -1611,9 +1611,7 @@ impl Formatter {
                             ));
                         }
                         // When parsing, if FF is given, the default precision is 9
-                        let (usec, rem) = parse_fraction(s, p.unwrap_or(9) as usize)?;
-                        s = rem;
-                        dt.usec = usec;
+                        (dt.usec, s) = parse_fraction::<T>(s, p.unwrap_or(9) as usize)?;
                         is_fraction_set = true;
                     } else {
                         return Err(Error::ParseError(
@@ -1963,7 +1961,7 @@ fn parse_ampm<'a>(s: &'a [u8], style: &'a AmPmStyle) -> Result<(Option<AmPm>, &'
 }
 
 #[inline]
-fn parse_fraction(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
+fn parse_fraction<T: DateTimeFormat>(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
     match s.first() {
         Some(ch) => {
             if *ch == b'-' {
@@ -1982,7 +1980,11 @@ fn parse_fraction(s: &[u8], max_len: usize) -> Result<(u32, &[u8])> {
         .iter()
         .fold(0, |int, &i| int * 10 + (i - b'0') as i32);
     Ok((
-        (int as f64 * FRACTION_FACTOR[digits.len()]).round() as u32,
+        // Truncate when we want time, but do not want fractions.  Matches oracle::Date.
+        match T::HAS_FRACTION {
+            false => 0u32,
+            _ => (int as f64 * FRACTION_FACTOR[digits.len()]).round() as u32,
+        },
         s,
     ))
 }

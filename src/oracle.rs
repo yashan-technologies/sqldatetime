@@ -967,6 +967,28 @@ mod tests {
     }
 
     #[test]
+    fn test_date_truncate() {
+        assert_eq!(
+            Date::parse("9999-12-31T23:59:59.999999Z", "yyyy-mm-ddThh24:mi:ss.ff"),
+            Ok(Date::MAX),
+            "Should truncate for 6 digits",
+        );
+        assert_eq!(
+            Date::parse("9999-12-31T23:59:59.999999999Z", "yyyy-mm-ddThh24:mi:ss.ff"),
+            Ok(Date::MAX),
+            "Should truncate for 9 digits",
+        );
+        assert!(
+            Date::parse(
+                "9999-12-31T23:59:59.9999999999Z",
+                "yyyy-mm-ddThh24:mi:ss.ff"
+            )
+            .is_err(),
+            "Should error for >9 digits",
+        );
+    }
+
+    #[test]
     fn test_date_to_sql_date_time() {
         let date = generate_date(1, 1, 1, 0, 0, 0);
         assert_eq!(date.date(), generate_sql_date(1, 1, 1));
