@@ -813,7 +813,7 @@ mod tests {
         }
 
         fn assert_invalid_iso_str(input: &str) {
-            assert!(Timestamp::parse(input, FMT).is_err());
+            assert!(Time::parse(input, FMT).is_err());
         }
 
         assert_iso_fmt("00:00:00", "00:00:00");
@@ -827,6 +827,8 @@ mod tests {
         assert_invalid_iso_str("TZ");
         assert_invalid_iso_str("T00Z");
         assert_invalid_iso_str("T00:00Z");
+        assert_invalid_iso_str("");
+        assert_invalid_iso_str(" ");
         assert_invalid_iso_str("00");
         assert_invalid_iso_str("00:00");
         assert_invalid_iso_str("00:00.123");

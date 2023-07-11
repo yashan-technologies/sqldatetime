@@ -1398,16 +1398,9 @@ impl Formatter {
                     if expect_char(s, b'T') {
                         s = &s[1..];
                         need_time_fields = true;
-                    } else if !s.is_empty() {
-                        if !T::HAS_DATE && T::HAS_TIME {
-                            // missing 'T' is allowed
-                            need_time_fields = true;
-                        } else {
-                            return Err(Error::ParseError(try_format!(
-                                "the input {} is inconsistent with the format",
-                                input.as_ref()
-                            )?));
-                        }
+                    } else if !s.is_empty() || !T::HAS_DATE {
+                        // missing 'T' is allowed; When we don't have date, we *must* have time
+                        need_time_fields = true;
                     }
                 }
                 Field::Year(n) => {
